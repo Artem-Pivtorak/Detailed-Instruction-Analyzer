@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { LightningOrb } from "./components/LightningOrb";
-import { Hexagon } from "./components/Hexagon";
 import { GlassButton } from "./components/GlassButton";
 import { SidePanel } from "./components/SidePanel";
 import { MemorySection } from "./sections/MemorySection";
@@ -24,16 +23,6 @@ const CONSOLE_LINES = [
   "Module integrity check: PASS. Uptime: 14h 22m",
 ];
 
-const HEXAGONS = [
-  { key: "memory",      label: "Memory",       color: "#f97316", glowColor: "#f97316" },
-  { key: "settings",    label: "Settings",     color: "#a855f7", glowColor: "#a855f7" },
-  { key: "people",      label: "People",       color: "#22c55e", glowColor: "#22c55e" },
-  { key: "reminder",    label: "Reminder",     color: "#eab308", glowColor: "#eab308" },
-  { key: "plugins",     label: "Plugins",      color: "#3b82f6", glowColor: "#3b82f6" },
-  { key: "commands",    label: "Commands",     color: "#06b6d4", glowColor: "#06b6d4" },
-  { key: "addcommands", label: "Add Commands", color: "#10b981", glowColor: "#10b981" },
-] as const;
-
 export default function App() {
   const [section, setSection] = useState<Section>(null);
   const [sidePanel, setSidePanel] = useState(false);
@@ -41,21 +30,20 @@ export default function App() {
   const [consoleText, setConsoleText] = useState("");
   const [consoleLineIdx, setConsoleLineIdx] = useState(0);
   const [consoleCharIdx, setConsoleCharIdx] = useState(0);
-  const [hoveredHex, setHoveredHex] = useState<string | null>(null);
   const { play } = useSound(soundEnabled);
 
   const playSound = useCallback((type: string) => {
     play(type as "hover" | "click" | "open" | "close" | "toggle" | "switch");
   }, [play]);
 
-  // Typewriter for console text
+  // Typewriter console text
   useEffect(() => {
     const line = CONSOLE_LINES[consoleLineIdx];
     if (consoleCharIdx < line.length) {
       const t = setTimeout(() => {
         setConsoleText(prev => prev + line[consoleCharIdx]);
         setConsoleCharIdx(i => i + 1);
-      }, 40);
+      }, 38);
       return () => clearTimeout(t);
     } else {
       const t = setTimeout(() => {
@@ -65,12 +53,12 @@ export default function App() {
         if ((consoleLineIdx + 1) % CONSOLE_LINES.length === 0) {
           setConsoleText("");
         }
-      }, 1200);
+      }, 1400);
       return () => clearTimeout(t);
     }
   }, [consoleCharIdx, consoleLineIdx]);
 
-  function openSection(key: Section) {
+  function openSection(key: NonNullable<Section>) {
     playSound("open");
     setSection(key);
   }
@@ -78,13 +66,6 @@ export default function App() {
   function closeSection() {
     setSection(null);
   }
-
-  const isNeighbor = (key: string) => {
-    if (!hoveredHex) return false;
-    const idx = HEXAGONS.findIndex(h => h.key === hoveredHex);
-    const thisIdx = HEXAGONS.findIndex(h => h.key === key);
-    return Math.abs(idx - thisIdx) === 1 && idx !== -1 && thisIdx !== -1 && key !== hoveredHex;
-  };
 
   return (
     <div
@@ -101,77 +82,62 @@ export default function App() {
         fontFamily: "'Segoe UI', Arial, sans-serif",
       }}
     >
-      {/* Gradient blob */}
+      {/* Ambient gradient blob */}
       <div style={{
         position: "absolute",
-        top: "20%",
+        top: "30%",
         left: "50%",
         transform: "translate(-50%, -50%)",
-        width: 400,
-        height: 300,
-        background: "radial-gradient(ellipse, rgba(0,100,255,0.12) 0%, transparent 70%)",
-        filter: "blur(40px)",
+        width: 500,
+        height: 400,
+        background: "radial-gradient(ellipse, rgba(0,80,200,0.10) 0%, transparent 70%)",
+        filter: "blur(50px)",
         pointerEvents: "none",
         zIndex: 0,
       }} />
 
-      {/* Top-right close & glass buttons */}
+      {/* Top-right: close + glass buttons */}
       <div style={{
         position: "absolute", top: 16, right: 16,
-        display: "flex", flexDirection: "column", gap: 12, zIndex: 50, alignItems: "flex-end",
+        display: "flex", flexDirection: "column", gap: 12,
+        zIndex: 50, alignItems: "flex-end",
       }}>
         <button
           onClick={() => { playSound("close"); window.close(); }}
           style={{
             width: 32, height: 32, borderRadius: "50%",
-            background: "rgba(255,60,60,0.15)",
-            border: "1px solid rgba(255,60,60,0.4)",
-            color: "rgba(255,255,255,0.7)", cursor: "pointer",
-            fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center",
+            background: "rgba(255,60,60,0.12)",
+            border: "1px solid rgba(255,60,60,0.35)",
+            color: "rgba(255,255,255,0.6)", cursor: "pointer",
+            fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center",
             transition: "all 0.2s",
           }}
-          onMouseEnter={e => { (e.currentTarget.style.background = "rgba(255,60,60,0.35)"); playSound("hover"); }}
-          onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,60,60,0.15)")}
+          onMouseEnter={e => { (e.currentTarget.style.background = "rgba(255,60,60,0.32)"); playSound("hover"); }}
+          onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,60,60,0.12)")}
         >✕</button>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <GlassButton
-            icon={<span>🔊</span>}
-            label="Sound"
-            onClick={() => { playSound("click"); }}
-            onHover={() => playSound("hover")}
-          />
-          <GlassButton
-            icon={<span>🎤</span>}
-            label="Mic"
-            onClick={() => playSound("click")}
-            onHover={() => playSound("hover")}
-          />
-          <GlassButton
-            icon={<span>❕</span>}
-            label="Info"
-            onClick={() => playSound("click")}
-            onHover={() => playSound("hover")}
-          />
+          <GlassButton icon={<span>🔊</span>} label="Sound"
+            onClick={() => playSound("click")} onHover={() => playSound("hover")} />
+          <GlassButton icon={<span>🎤</span>} label="Mic"
+            onClick={() => playSound("click")} onHover={() => playSound("hover")} />
+          <GlassButton icon={<span>❕</span>} label="Info"
+            onClick={() => playSound("click")} onHover={() => playSound("hover")} />
         </div>
       </div>
 
-      {/* Top-left menu & mic icons */}
+      {/* Top-left: menu + mic */}
       <div style={{
         position: "absolute", top: 16, left: 16,
-        display: "flex", gap: 16, alignItems: "center", zIndex: 50,
+        display: "flex", gap: 12, alignItems: "center", zIndex: 50,
       }}>
         <button
           onClick={() => { setSidePanel(true); playSound("open"); }}
           style={{
             background: "rgba(255,255,255,0.06)",
             border: "1px solid rgba(255,255,255,0.12)",
-            borderRadius: 8,
-            padding: "8px 10px",
-            cursor: "pointer",
-            color: "rgba(255,255,255,0.7)",
-            fontSize: 16,
-            backdropFilter: "blur(10px)",
-            transition: "all 0.2s",
+            borderRadius: 8, padding: "8px 10px",
+            cursor: "pointer", color: "rgba(255,255,255,0.7)",
+            fontSize: 16, backdropFilter: "blur(10px)", transition: "all 0.2s",
           }}
           onMouseEnter={e => { (e.currentTarget.style.background = "rgba(0,180,255,0.12)"); playSound("hover"); }}
           onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
@@ -181,12 +147,9 @@ export default function App() {
           style={{
             background: "rgba(255,255,255,0.06)",
             border: "1px solid rgba(255,255,255,0.12)",
-            borderRadius: "50%",
-            width: 36, height: 36,
-            cursor: "pointer",
-            color: "rgba(255,255,255,0.5)",
-            fontSize: 16,
-            backdropFilter: "blur(10px)",
+            borderRadius: "50%", width: 36, height: 36,
+            cursor: "pointer", color: "rgba(255,255,255,0.45)",
+            fontSize: 16, backdropFilter: "blur(10px)",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}
           onMouseEnter={() => playSound("hover")}
@@ -194,7 +157,7 @@ export default function App() {
         >🎙</button>
       </div>
 
-      {/* Main layout: Orb + Console + Hexagons */}
+      {/* Main layout */}
       <div style={{
         position: "relative", zIndex: 10,
         display: "flex",
@@ -202,26 +165,27 @@ export default function App() {
         alignItems: "center",
         gap: 0,
       }}>
-        {/* Lightning Orb */}
-        <div style={{ marginBottom: -10 }}>
-          <LightningOrb size={200} />
+        {/* Electric ring orb */}
+        <div style={{ marginBottom: -8 }}>
+          <LightningOrb size={240} />
         </div>
 
-        {/* Console text above glass frame */}
+        {/* Typewriter console line */}
         <div style={{
           fontFamily: "'Courier New', monospace",
           fontSize: 11,
           color: "#00cfff",
           textShadow: "0 0 8px rgba(0,200,255,0.6)",
           letterSpacing: "0.04em",
-          marginBottom: 6,
+          marginBottom: 8,
           textAlign: "left",
           maxWidth: 340,
           minHeight: 18,
           lineHeight: 1.5,
           whiteSpace: "pre-wrap",
         }}>
-          {consoleText}<span style={{ animation: "blink-cursor 1s step-end infinite" }}>█</span>
+          {consoleText}
+          <span style={{ animation: "blink-cursor 1s step-end infinite", opacity: 1 }}>█</span>
         </div>
 
         {/* Glass frame */}
@@ -231,133 +195,28 @@ export default function App() {
             width: 340,
             borderRadius: 16,
             padding: "18px 22px",
-            boxShadow: "0 0 40px rgba(0,150,255,0.15), inset 0 1px 0 rgba(255,255,255,0.08)",
+            boxShadow: "0 0 40px rgba(0,150,255,0.15), inset 0 1px 0 rgba(255,255,255,0.06)",
           }}
         >
           <div style={{
             fontFamily: "'Courier New', monospace",
             fontSize: 11,
-            color: "rgba(255,255,255,0.6)",
-            lineHeight: 1.7,
+            color: "rgba(255,255,255,0.58)",
+            lineHeight: 1.75,
             whiteSpace: "pre-wrap",
           }}>
-            {`Quis suspiendisse ultrices gravida.\nRisus commodo viverra maecenas accumsan.\n\nLorem ipsum dolor sit amet, consectetur\nadipiscing elit, sed do eiusmod tempor incididunt\nut labore et dolore magna.`}
+            {`Quis suspiendisse ultrices gravida.\nRisus commodo viverra maecenas accumsan.\n\nLorem ipsum dolor sit amet, consectetur\nadipiscing elit, sed do eiusmod tempor\nincididunt ut labore et dolore magna.`}
           </div>
-        </div>
-
-        {/* Hexagon grid */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 100px)",
-          gridTemplateRows: "repeat(3, 88px)",
-          gap: 4,
-          marginTop: 18,
-          justifyItems: "center",
-          alignItems: "center",
-        }}>
-          {/* Row 1: Memory (col2) */}
-          <div />
-          <Hexagon
-            key="memory"
-            label="Memory"
-            color="#f97316"
-            glowColor="#f97316"
-            size={96}
-            isNeighbor={isNeighbor("memory")}
-            onClick={() => openSection("memory")}
-            onHover={() => { setHoveredHex("memory"); playSound("hover"); }}
-          />
-          <div />
-
-          {/* Row 2: Settings (col1), People (col3) */}
-          <Hexagon
-            key="settings"
-            label="Settings"
-            color="#a855f7"
-            glowColor="#a855f7"
-            size={96}
-            isNeighbor={isNeighbor("settings")}
-            onClick={() => openSection("settings")}
-            onHover={() => { setHoveredHex("settings"); playSound("hover"); }}
-          />
-          <div />
-          <Hexagon
-            key="people"
-            label="People"
-            color="#22c55e"
-            glowColor="#22c55e"
-            size={96}
-            isNeighbor={isNeighbor("people")}
-            onClick={() => openSection("people")}
-            onHover={() => { setHoveredHex("people"); playSound("hover"); }}
-          />
-
-          {/* Row 3: Reminder (col1-2 center), Plugins (col3) */}
-          <div />
-          <Hexagon
-            key="reminder"
-            label="Reminder"
-            color="#eab308"
-            glowColor="#eab308"
-            size={96}
-            isNeighbor={isNeighbor("reminder")}
-            onClick={() => openSection("reminder")}
-            onHover={() => { setHoveredHex("reminder"); playSound("hover"); }}
-          />
-          <Hexagon
-            key="plugins"
-            label="Plugins"
-            color="#3b82f6"
-            glowColor="#3b82f6"
-            size={96}
-            isNeighbor={isNeighbor("plugins")}
-            onClick={() => openSection("plugins")}
-            onHover={() => { setHoveredHex("plugins"); playSound("hover"); }}
-          />
-        </div>
-
-        {/* Row 4: Commands and Add Commands */}
-        <div style={{
-          display: "flex",
-          gap: 12,
-          marginTop: 4,
-        }}>
-          <Hexagon
-            key="commands"
-            label="Commands"
-            color="#06b6d4"
-            glowColor="#06b6d4"
-            size={96}
-            isNeighbor={isNeighbor("commands")}
-            onClick={() => openSection("commands")}
-            onHover={() => { setHoveredHex("commands"); playSound("hover"); }}
-          />
-          <Hexagon
-            key="addcommands"
-            label="Add Commands"
-            color="#10b981"
-            glowColor="#10b981"
-            size={96}
-            isNeighbor={isNeighbor("addcommands")}
-            onClick={() => openSection("addcommands")}
-            onHover={() => { setHoveredHex("addcommands"); playSound("hover"); }}
-          />
         </div>
       </div>
 
       {/* Footer */}
       <div style={{
-        position: "absolute",
-        bottom: 12,
-        left: 0,
-        right: 0,
-        textAlign: "center",
-        fontSize: 11,
-        color: "rgba(180,180,180,0.45)",
+        position: "absolute", bottom: 12, left: 0, right: 0,
+        textAlign: "center", fontSize: 11,
+        color: "rgba(170,170,170,0.38)",
         fontFamily: "Arial, 'Segoe UI', sans-serif",
-        letterSpacing: "0.02em",
-        userSelect: "none",
-        zIndex: 5,
+        letterSpacing: "0.02em", userSelect: "none", zIndex: 5,
       }}>
         Copyright © 2019-2026 Karotvip Industries Inc. All rights reserved.
       </div>
@@ -367,6 +226,7 @@ export default function App() {
         open={sidePanel}
         onClose={() => setSidePanel(false)}
         onSound={playSound}
+        onOpenSection={openSection}
       />
 
       {/* Sections */}
