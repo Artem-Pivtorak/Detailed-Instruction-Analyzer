@@ -102,43 +102,31 @@ export default function App() {
         zIndex: 0,
       }} />
 
-      {/* Top-right: microphone button */}
-      <div style={{
-        position: "absolute", top: 16, right: 16,
-        zIndex: 50,
-      }}>
+      {/* Top-right: neon microphone */}
+      <div style={{ position: "absolute", top: 16, right: 16, zIndex: 50 }}>
         <button
+          className="neon-btn neon-pink"
           style={{
-            background: "rgba(255,255,255,0.06)",
-            border: "1px solid rgba(255,255,255,0.12)",
-            borderRadius: "50%", width: 36, height: 36,
-            cursor: "pointer", color: "rgba(255,255,255,0.55)",
-            fontSize: 17, backdropFilter: "blur(10px)",
+            borderRadius: "50%", width: 38, height: 38,
+            fontSize: 17, backdropFilter: "blur(12px)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            transition: "all 0.2s",
           }}
-          onMouseEnter={e => { (e.currentTarget.style.background = "rgba(160,80,255,0.22)"); playSound("hover"); }}
-          onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
+          onMouseEnter={() => playSound("hover")}
           title="Microphone"
         >🎙</button>
       </div>
 
-      {/* Top-left: menu + mic */}
-      <div style={{
-        position: "absolute", top: 16, left: 16,
-        display: "flex", gap: 12, alignItems: "center", zIndex: 50,
-      }}>
+      {/* Top-left: neon menu */}
+      <div style={{ position: "absolute", top: 16, left: 16, zIndex: 50 }}>
         <button
+          className="neon-btn neon-cyan"
           onClick={() => { setSidePanel(true); playSound("open"); }}
           style={{
-            background: "rgba(255,255,255,0.06)",
-            border: "1px solid rgba(255,255,255,0.12)",
-            borderRadius: 8, padding: "8px 10px",
-            cursor: "pointer", color: "rgba(255,255,255,0.7)",
-            fontSize: 16, backdropFilter: "blur(10px)", transition: "all 0.2s",
+            borderRadius: 9, padding: "8px 12px",
+            fontSize: 17, backdropFilter: "blur(12px)",
+            letterSpacing: "0.05em",
           }}
-          onMouseEnter={e => { (e.currentTarget.style.background = "rgba(160,0,255,0.14)"); playSound("hover"); }}
-          onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
+          onMouseEnter={() => playSound("hover")}
           title="Menu"
         >☰</button>
       </div>

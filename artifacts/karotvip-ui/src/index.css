@@ -149,6 +149,58 @@
   transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
 }
 
+/* Neon buttons */
+.neon-btn {
+  position: relative;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  outline: none;
+}
+.neon-btn::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  pointer-events: none;
+}
+.neon-btn:hover::after { opacity: 1; }
+
+.neon-cyan {
+  background: rgba(0, 220, 255, 0.08);
+  border: 1px solid rgba(0, 220, 255, 0.55);
+  color: rgba(0, 220, 255, 0.90);
+  box-shadow: 0 0 8px rgba(0,220,255,0.25), inset 0 0 8px rgba(0,220,255,0.06);
+}
+.neon-cyan::after {
+  background: transparent;
+  box-shadow: 0 0 18px 4px rgba(0,220,255,0.45), 0 0 40px 8px rgba(0,220,255,0.20);
+}
+.neon-cyan:hover {
+  background: rgba(0, 220, 255, 0.16);
+  border-color: rgba(0, 220, 255, 0.90);
+  color: #00eeff;
+  box-shadow: 0 0 14px rgba(0,220,255,0.55), 0 0 28px rgba(0,220,255,0.25), inset 0 0 12px rgba(0,220,255,0.10);
+}
+
+.neon-pink {
+  background: rgba(255, 40, 180, 0.08);
+  border: 1px solid rgba(255, 40, 180, 0.50);
+  color: rgba(255, 80, 200, 0.90);
+  box-shadow: 0 0 8px rgba(255,40,180,0.22), inset 0 0 8px rgba(255,40,180,0.06);
+}
+.neon-pink::after {
+  background: transparent;
+  box-shadow: 0 0 18px 4px rgba(255,40,180,0.45), 0 0 40px 8px rgba(255,40,180,0.20);
+}
+.neon-pink:hover {
+  background: rgba(255, 40, 180, 0.16);
+  border-color: rgba(255, 40, 180, 0.90);
+  color: #ff50e0;
+  box-shadow: 0 0 14px rgba(255,40,180,0.55), 0 0 28px rgba(255,40,180,0.25), inset 0 0 12px rgba(255,40,180,0.10);
+}
+
 /* Animations */
 @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes pulse-glow {
