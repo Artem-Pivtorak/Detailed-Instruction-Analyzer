@@ -141,20 +141,6 @@ export default function App() {
           onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
           title="Menu"
         >☰</button>
-        <button
-          style={{
-            background: "rgba(255,255,255,0.06)",
-            border: "1px solid rgba(255,255,255,0.12)",
-            borderRadius: "50%", width: 36, height: 36,
-            cursor: "pointer", color: "rgba(255,255,255,0.45)",
-            fontSize: 16, backdropFilter: "blur(10px)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            transition: "all 0.2s",
-          }}
-          onMouseEnter={e => { (e.currentTarget.style.background = "rgba(160,80,255,0.22)"); playSound("hover"); }}
-          onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
-          title="Microphone"
-        >🎙</button>
       </div>
 
       {/* Main layout */}
@@ -170,17 +156,18 @@ export default function App() {
           <ParticleSphere size={240} />
         </div>
 
-        {/* Glass frame — contains the live typewriter text */}
+        {/* Glass frame — static shape, contains the live typewriter text */}
         <div
           className="glass-blue"
           style={{
             width: 340,
-            minHeight: 160,
+            height: 178,
             borderRadius: 16,
-            padding: "16px 20px",
+            padding: "14px 18px",
             boxShadow: "0 0 40px rgba(120,0,255,0.12), inset 0 1px 0 rgba(255,255,255,0.06)",
             position: "relative",
             overflow: "hidden",
+            flexShrink: 0,
           }}
         >
           {/* Subtle inner glow at top */}

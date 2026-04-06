@@ -71,21 +71,23 @@ export function ParticleSphere({ size = 240 }: ParticleSphereProps) {
       // Several sine waves propagate across the sphere surface using
       // the point's angular position (theta = longitude, phi = latitude).
       // Waves travel in different directions and speeds for organic look.
-      const waveAmp = 0.18;   // max displacement fraction of R
+      const waveAmp = 0.48;   // max displacement fraction of R — strong ocean deformation
 
       function oceanWave(theta: number, phi: number): number {
-        // wave 1: slow rolling band from south-to-north
-        const w1 = Math.sin(phi * 3.0 + t * 0.9) * 0.45;
-        // wave 2: faster horizontal (east-west) ripple
-        const w2 = Math.sin(theta * 2.5 - t * 1.3) * 0.30;
+        // wave 1: slow deep swell north-to-south
+        const w1 = Math.sin(phi * 2.5 + t * 0.8) * 0.40;
+        // wave 2: rolling east-west band
+        const w2 = Math.sin(theta * 2.0 - t * 1.1) * 0.32;
         // wave 3: diagonal swell
-        const w3 = Math.sin(phi * 2.0 + theta * 1.5 + t * 0.7) * 0.20;
-        // wave 4: small high-freq chop
-        const w4 = Math.sin(phi * 5.0 - theta * 3.0 + t * 1.8) * 0.10;
-        // wave 5: very slow deep swell
-        const w5 = Math.sin(phi * 1.2 + theta * 0.8 - t * 0.4) * 0.25;
-        // combine — result is -1..1
-        return (w1 + w2 + w3 + w4 + w5) / (0.45 + 0.30 + 0.20 + 0.10 + 0.25);
+        const w3 = Math.sin(phi * 1.8 + theta * 1.3 + t * 0.65) * 0.28;
+        // wave 4: secondary fast ripple
+        const w4 = Math.sin(phi * 4.5 - theta * 2.5 + t * 1.6) * 0.18;
+        // wave 5: slow mega-swell (creates big bulge)
+        const w5 = Math.sin(phi * 0.9 + theta * 0.6 - t * 0.35) * 0.38;
+        // wave 6: cross-diagonal churn
+        const w6 = Math.sin(phi * 3.2 - theta * 1.8 + t * 1.0) * 0.20;
+        const total = 0.40 + 0.32 + 0.28 + 0.18 + 0.38 + 0.20;
+        return (w1 + w2 + w3 + w4 + w5 + w6) / total;
       }
 
       // Project all points
