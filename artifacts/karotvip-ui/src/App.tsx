@@ -102,24 +102,25 @@ export default function App() {
         zIndex: 0,
       }} />
 
-      {/* Top-right: close button only */}
+      {/* Top-right: microphone button */}
       <div style={{
         position: "absolute", top: 16, right: 16,
         zIndex: 50,
       }}>
         <button
-          onClick={() => { playSound("close"); window.close(); }}
           style={{
-            width: 32, height: 32, borderRadius: "50%",
-            background: "rgba(255,60,60,0.12)",
-            border: "1px solid rgba(255,60,60,0.35)",
-            color: "rgba(255,255,255,0.6)", cursor: "pointer",
-            fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center",
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: "50%", width: 36, height: 36,
+            cursor: "pointer", color: "rgba(255,255,255,0.55)",
+            fontSize: 17, backdropFilter: "blur(10px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
             transition: "all 0.2s",
           }}
-          onMouseEnter={e => { (e.currentTarget.style.background = "rgba(255,60,60,0.32)"); playSound("hover"); }}
-          onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,60,60,0.12)")}
-        >✕</button>
+          onMouseEnter={e => { (e.currentTarget.style.background = "rgba(160,80,255,0.22)"); playSound("hover"); }}
+          onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
+          title="Microphone"
+        >🎙</button>
       </div>
 
       {/* Top-left: menu + mic */}
@@ -148,8 +149,10 @@ export default function App() {
             cursor: "pointer", color: "rgba(255,255,255,0.45)",
             fontSize: 16, backdropFilter: "blur(10px)",
             display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "all 0.2s",
           }}
-          onMouseEnter={() => playSound("hover")}
+          onMouseEnter={e => { (e.currentTarget.style.background = "rgba(160,80,255,0.22)"); playSound("hover"); }}
+          onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
           title="Microphone"
         >🎙</button>
       </div>
