@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { LightningOrb } from "./components/LightningOrb";
-import { GlassButton } from "./components/GlassButton";
+import { ParticleSphere } from "./components/ParticleSphere";
 import { SidePanel } from "./components/SidePanel";
 import { MemorySection } from "./sections/MemorySection";
 import { SettingsSection } from "./sections/SettingsSection";
@@ -19,44 +18,51 @@ const CONSOLE_LINES = [
   "Voice recognition module: STANDBY",
   "Memory cache allocated: 6.2 GB",
   "All subsystems nominal. Ready for commands.",
-  "SYSTEM: Lorem ipsum dolor sit amet, consectetur adipiscing.",
+  "Processing request queue... 0 pending tasks.",
   "Module integrity check: PASS. Uptime: 14h 22m",
+  "SYSTEM: Lorem ipsum dolor sit amet, consectetur adipiscing.",
+  "Scanning environment... No anomalies detected.",
+  "Karotvip Core ready. Awaiting input.",
 ];
 
 export default function App() {
   const [section, setSection] = useState<Section>(null);
   const [sidePanel, setSidePanel] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [consoleText, setConsoleText] = useState("");
-  const [consoleLineIdx, setConsoleLineIdx] = useState(0);
-  const [consoleCharIdx, setConsoleCharIdx] = useState(0);
+  const [consoleLines, setConsoleLines] = useState<string[]>([]);
+  const [currentLine, setCurrentLine] = useState("");
+  const [lineIdx, setLineIdx] = useState(0);
+  const [charIdx, setCharIdx] = useState(0);
   const { play } = useSound(soundEnabled);
 
   const playSound = useCallback((type: string) => {
     play(type as "hover" | "click" | "open" | "close" | "toggle" | "switch");
   }, [play]);
 
-  // Typewriter console text
+  // Typewriter effect — fills lines inside the frame
   useEffect(() => {
-    const line = CONSOLE_LINES[consoleLineIdx];
-    if (consoleCharIdx < line.length) {
+    const line = CONSOLE_LINES[lineIdx];
+    if (charIdx < line.length) {
       const t = setTimeout(() => {
-        setConsoleText(prev => prev + line[consoleCharIdx]);
-        setConsoleCharIdx(i => i + 1);
-      }, 38);
+        setCurrentLine(prev => prev + line[charIdx]);
+        setCharIdx(i => i + 1);
+      }, 36);
       return () => clearTimeout(t);
     } else {
       const t = setTimeout(() => {
-        setConsoleText(prev => prev + "\n");
-        setConsoleLineIdx(i => (i + 1) % CONSOLE_LINES.length);
-        setConsoleCharIdx(0);
-        if ((consoleLineIdx + 1) % CONSOLE_LINES.length === 0) {
-          setConsoleText("");
-        }
-      }, 1400);
+        // Commit this line, start the next
+        setConsoleLines(prev => {
+          const next = [...prev, line];
+          // Keep max 8 lines visible
+          return next.length > 8 ? next.slice(next.length - 8) : next;
+        });
+        setCurrentLine("");
+        setLineIdx(i => (i + 1) % CONSOLE_LINES.length);
+        setCharIdx(0);
+      }, 1000);
       return () => clearTimeout(t);
     }
-  }, [consoleCharIdx, consoleLineIdx]);
+  }, [charIdx, lineIdx]);
 
   function openSection(key: NonNullable<Section>) {
     playSound("open");
@@ -85,22 +91,21 @@ export default function App() {
       {/* Ambient gradient blob */}
       <div style={{
         position: "absolute",
-        top: "30%",
+        top: "35%",
         left: "50%",
         transform: "translate(-50%, -50%)",
         width: 500,
         height: 400,
-        background: "radial-gradient(ellipse, rgba(0,80,200,0.10) 0%, transparent 70%)",
-        filter: "blur(50px)",
+        background: "radial-gradient(ellipse, rgba(120,0,200,0.09) 0%, transparent 70%)",
+        filter: "blur(60px)",
         pointerEvents: "none",
         zIndex: 0,
       }} />
 
-      {/* Top-right: close + glass buttons */}
+      {/* Top-right: close button only */}
       <div style={{
         position: "absolute", top: 16, right: 16,
-        display: "flex", flexDirection: "column", gap: 12,
-        zIndex: 50, alignItems: "flex-end",
+        zIndex: 50,
       }}>
         <button
           onClick={() => { playSound("close"); window.close(); }}
@@ -115,14 +120,6 @@ export default function App() {
           onMouseEnter={e => { (e.currentTarget.style.background = "rgba(255,60,60,0.32)"); playSound("hover"); }}
           onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,60,60,0.12)")}
         >✕</button>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <GlassButton icon={<span>🔊</span>} label="Sound"
-            onClick={() => playSound("click")} onHover={() => playSound("hover")} />
-          <GlassButton icon={<span>🎤</span>} label="Mic"
-            onClick={() => playSound("click")} onHover={() => playSound("hover")} />
-          <GlassButton icon={<span>❕</span>} label="Info"
-            onClick={() => playSound("click")} onHover={() => playSound("hover")} />
-        </div>
       </div>
 
       {/* Top-left: menu + mic */}
@@ -139,7 +136,7 @@ export default function App() {
             cursor: "pointer", color: "rgba(255,255,255,0.7)",
             fontSize: 16, backdropFilter: "blur(10px)", transition: "all 0.2s",
           }}
-          onMouseEnter={e => { (e.currentTarget.style.background = "rgba(0,180,255,0.12)"); playSound("hover"); }}
+          onMouseEnter={e => { (e.currentTarget.style.background = "rgba(160,0,255,0.14)"); playSound("hover"); }}
           onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
           title="Menu"
         >☰</button>
@@ -165,47 +162,59 @@ export default function App() {
         alignItems: "center",
         gap: 0,
       }}>
-        {/* Electric ring orb */}
-        <div style={{ marginBottom: -8 }}>
-          <LightningOrb size={240} />
+        {/* Particle sphere */}
+        <div style={{ marginBottom: -4 }}>
+          <ParticleSphere size={240} />
         </div>
 
-        {/* Typewriter console line */}
-        <div style={{
-          fontFamily: "'Courier New', monospace",
-          fontSize: 11,
-          color: "#00cfff",
-          textShadow: "0 0 8px rgba(0,200,255,0.6)",
-          letterSpacing: "0.04em",
-          marginBottom: 8,
-          textAlign: "left",
-          maxWidth: 340,
-          minHeight: 18,
-          lineHeight: 1.5,
-          whiteSpace: "pre-wrap",
-        }}>
-          {consoleText}
-          <span style={{ animation: "blink-cursor 1s step-end infinite", opacity: 1 }}>█</span>
-        </div>
-
-        {/* Glass frame */}
+        {/* Glass frame — contains the live typewriter text */}
         <div
           className="glass-blue"
           style={{
             width: 340,
+            minHeight: 160,
             borderRadius: 16,
-            padding: "18px 22px",
-            boxShadow: "0 0 40px rgba(0,150,255,0.15), inset 0 1px 0 rgba(255,255,255,0.06)",
+            padding: "16px 20px",
+            boxShadow: "0 0 40px rgba(120,0,255,0.12), inset 0 1px 0 rgba(255,255,255,0.06)",
+            position: "relative",
+            overflow: "hidden",
           }}
         >
+          {/* Subtle inner glow at top */}
+          <div style={{
+            position: "absolute", top: 0, left: "10%", right: "10%", height: 1,
+            background: "linear-gradient(90deg, transparent, rgba(180,80,255,0.4), transparent)",
+            pointerEvents: "none",
+          }} />
+
           <div style={{
             fontFamily: "'Courier New', monospace",
             fontSize: 11,
-            color: "rgba(255,255,255,0.58)",
-            lineHeight: 1.75,
-            whiteSpace: "pre-wrap",
+            color: "rgba(255,255,255,0.65)",
+            lineHeight: 1.8,
           }}>
-            {`Quis suspiendisse ultrices gravida.\nRisus commodo viverra maecenas accumsan.\n\nLorem ipsum dolor sit amet, consectetur\nadipiscing elit, sed do eiusmod tempor\nincididunt ut labore et dolore magna.`}
+            {/* Committed lines */}
+            {consoleLines.map((line, i) => (
+              <div key={i} style={{
+                color: line.startsWith("SYSTEM:") ? "#c084fc" : "rgba(255,255,255,0.55)",
+                opacity: 0.6 + (i / consoleLines.length) * 0.4,
+              }}>
+                {line}
+              </div>
+            ))}
+            {/* Currently typing line */}
+            <div style={{ color: "#e2c0ff" }}>
+              {currentLine}
+              <span style={{
+                display: "inline-block",
+                width: 7, height: 12,
+                background: "#c084fc",
+                marginLeft: 1,
+                verticalAlign: "middle",
+                opacity: 1,
+                animation: "blink-cursor 0.9s step-end infinite",
+              }} />
+            </div>
           </div>
         </div>
       </div>
@@ -214,7 +223,7 @@ export default function App() {
       <div style={{
         position: "absolute", bottom: 12, left: 0, right: 0,
         textAlign: "center", fontSize: 11,
-        color: "rgba(170,170,170,0.38)",
+        color: "rgba(160,160,160,0.35)",
         fontFamily: "Arial, 'Segoe UI', sans-serif",
         letterSpacing: "0.02em", userSelect: "none", zIndex: 5,
       }}>
