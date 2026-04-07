@@ -14,7 +14,7 @@ function rotateZ(x: number, y: number, z: number, a: number): [number, number, n
   return [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a), z];
 }
 
-export function ParticleSphere({ size = 240 }: ParticleSphereProps) {
+export function ParticleSphere({ size = 270 }: ParticleSphereProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
 
@@ -26,21 +26,20 @@ export function ParticleSphere({ size = 240 }: ParticleSphereProps) {
 
     const cx = size / 2;
     const cy = size / 2;
-    const R = size * 0.37;
+    const R = size * 0.34;
 
-    // Fibonacci lattice for uniform distribution on sphere
-    const COUNT = 1400;
+    // ── Fibonacci lattice — dense uniform distribution ──────────────────────
+    const COUNT = 2200;
     const goldenAngle = Math.PI * (3 - Math.sqrt(5));
 
-    // Store base spherical coordinates and normals
     const pts: {
-      theta: number;   // azimuthal (longitude-like)
-      phi: number;     // elevation (latitude-like)
-      nx: number; ny: number; nz: number;  // unit normal
+      theta: number;
+      phi: number;
+      nx: number; ny: number; nz: number;
     }[] = [];
 
     for (let i = 0; i < COUNT; i++) {
-      const yN = 1 - (i / (COUNT - 1)) * 2;        // -1..1
+      const yN = 1 - (i / (COUNT - 1)) * 2;
       const sinPhi = Math.sqrt(Math.max(0, 1 - yN * yN));
       const theta = goldenAngle * i;
       pts.push({
@@ -52,42 +51,48 @@ export function ParticleSphere({ size = 240 }: ParticleSphereProps) {
       });
     }
 
-    // Rotation state — very slow tumble
+    // Slow global tumble
     let rxA = 0, ryA = 0, rzA = 0;
-
     let frame = 0;
 
     function draw() {
       ctx.clearRect(0, 0, size, size);
 
-      const t = frame * 0.007;   // master time — slow
+      const t = frame * 0.007;
 
-      // Slowly tumble on all axes
-      rxA += 0.0015 + Math.sin(t * 0.11) * 0.0004;
-      ryA += 0.0022 + Math.sin(t * 0.07) * 0.0005;
-      rzA += 0.0008 + Math.sin(t * 0.15) * 0.0002;
+      // Slowly drift tumble speed — organic feel
+      rxA += 0.0013 + Math.sin(t * 0.09) * 0.0005;
+      ryA += 0.0020 + Math.sin(t * 0.07) * 0.0006;
+      rzA += 0.0007 + Math.sin(t * 0.13) * 0.0003;
 
-      // ----- Ocean-wave displacement -----
-      // Several sine waves propagate across the sphere surface using
-      // the point's angular position (theta = longitude, phi = latitude).
-      // Waves travel in different directions and speeds for organic look.
-      const waveAmp = 0.48;   // max displacement fraction of R — strong ocean deformation
+      // ── Turbulent current waves ────────────────────────────────────────────
+      // Instead of simple swells, we compose several waves that interfere
+      // non-linearly, creating current-like streams across the sphere surface.
+      const AMP = 0.60;   // total max displacement (fraction of R)
 
-      function oceanWave(theta: number, phi: number): number {
-        // wave 1: slow deep swell north-to-south
-        const w1 = Math.sin(phi * 2.5 + t * 0.8) * 0.40;
-        // wave 2: rolling east-west band
-        const w2 = Math.sin(theta * 2.0 - t * 1.1) * 0.32;
-        // wave 3: diagonal swell
-        const w3 = Math.sin(phi * 1.8 + theta * 1.3 + t * 0.65) * 0.28;
-        // wave 4: secondary fast ripple
-        const w4 = Math.sin(phi * 4.5 - theta * 2.5 + t * 1.6) * 0.18;
-        // wave 5: slow mega-swell (creates big bulge)
-        const w5 = Math.sin(phi * 0.9 + theta * 0.6 - t * 0.35) * 0.38;
-        // wave 6: cross-diagonal churn
-        const w6 = Math.sin(phi * 3.2 - theta * 1.8 + t * 1.0) * 0.20;
-        const total = 0.40 + 0.32 + 0.28 + 0.18 + 0.38 + 0.20;
-        return (w1 + w2 + w3 + w4 + w5 + w6) / total;
+      function turbulence(theta: number, phi: number): number {
+        // ---- Primary currents (slow large flow bands) ----
+        const c1 = Math.sin(phi * 1.6 + theta * 0.4 + t * 0.55) * 0.38;
+        const c2 = Math.sin(phi * 0.8 - theta * 1.2 + t * 0.42) * 0.32;
+
+        // ---- Secondary ripples (mid-speed crossing streams) ----
+        const r1 = Math.sin(phi * 3.5 + theta * 1.8 - t * 0.95) * 0.22;
+        const r2 = Math.sin(phi * 2.8 - theta * 2.4 + t * 1.10) * 0.18;
+
+        // ---- Interference (multiply two waves → pinch/bulge nodes) ----
+        const i1 = Math.sin(phi * 2.1 + t * 0.72) * Math.cos(theta * 1.5 - t * 0.68) * 0.28;
+        const i2 = Math.cos(phi * 1.3 - t * 0.50) * Math.sin(theta * 2.8 + t * 0.82) * 0.22;
+
+        // ---- Fast surface chop (high frequency tremors) ----
+        const ch1 = Math.sin(phi * 6.0 - theta * 3.5 + t * 1.80) * 0.10;
+        const ch2 = Math.sin(phi * 5.2 + theta * 4.1 - t * 2.10) * 0.08;
+
+        // ---- Deep mega-swell (slow global breathing) ----
+        const ms = Math.sin(phi * 0.6 + theta * 0.3 - t * 0.28) * 0.40;
+
+        const raw = c1 + c2 + r1 + r2 + i1 + i2 + ch1 + ch2 + ms;
+        // Normalise to -1..1 (sum of weights = 1.78)
+        return raw / 1.78;
       }
 
       // Project all points
@@ -100,64 +105,62 @@ export function ParticleSphere({ size = 240 }: ParticleSphereProps) {
       for (let i = 0; i < COUNT; i++) {
         const p = pts[i];
 
-        // Displacement along surface normal (in/out like ocean surface)
-        const wave = oceanWave(p.theta, p.phi);
-        const disp = 1.0 + wave * waveAmp;
+        // Displacement along the surface normal
+        const wave = turbulence(p.theta, p.phi);
+        const disp = 1.0 + wave * AMP;
 
-        // 3D position before global rotation
         let px = p.nx * disp * R;
         let py = p.ny * disp * R;
         let pz = p.nz * disp * R;
 
-        // Apply global slow rotation
+        // Global rotation
         [px, py, pz] = rotateX(px, py, pz, rxA);
         [px, py, pz] = rotateY(px, py, pz, ryA);
         [px, py, pz] = rotateZ(px, py, pz, rzA);
 
-        // Perspective projection (mild FOV)
-        const fov = size * 2.2;
-        const scale = fov / (fov + pz + R * 0.5);
+        // Perspective projection
+        const fov = size * 2.0;
+        const scale = fov / (fov + pz + R * 0.4);
         const sx = cx + px * scale;
         const sy = cy + py * scale;
 
         // Depth factor 0=back 1=front
-        const df = Math.max(0, Math.min(1, (pz + R * 1.3) / (R * 2.6)));
+        const df = Math.max(0, Math.min(1, (pz + R * 1.4) / (R * 2.8)));
 
-        // Color: blend depends on spherical position + wave phase
-        // Inspired by reference: deep blue/indigo bottom-left → purple mid → hot-pink/magenta top-right
-        const colorU = (p.nx + 1) / 2;   // 0=left(blue) → 1=right(magenta)
-        const colorV = (p.ny + 1) / 2;   // 0=bottom(blue) → 1=top(pink-yellow)
-        // modulate with slow wave for shimmering colour shift
-        const waveMod = (wave + 1) / 2;  // 0..1
-        const blend = colorV * 0.55 + colorU * 0.25 + waveMod * 0.20;
+        // Color: blue/indigo → purple → magenta → warm pink, modulated by wave
+        const colorV = (p.ny + 1) / 2;
+        const colorU = (p.nx + 1) / 2;
+        const waveMod = (wave + 1) / 2;
+        const blend = colorV * 0.52 + colorU * 0.24 + waveMod * 0.24;
 
         let cr, cg, cb;
-        if (blend < 0.3) {
-          const f = blend / 0.3;
-          cr = Math.round(15 + f * 95);
-          cg = Math.round(10 + f * 5);
-          cb = Math.round(190 + f * 40);
-        } else if (blend < 0.58) {
-          const f = (blend - 0.3) / 0.28;
-          cr = Math.round(110 + f * 110);
-          cg = Math.round(15 - f * 10);
-          cb = Math.round(230 - f * 50);
-        } else if (blend < 0.82) {
-          const f = (blend - 0.58) / 0.24;
-          cr = Math.round(220 + f * 30);
-          cg = Math.round(5 + f * 60);
-          cb = Math.round(180 - f * 90);
+        if (blend < 0.28) {
+          const f = blend / 0.28;
+          cr = Math.round(18 + f * 90);
+          cg = Math.round(8 + f * 5);
+          cb = Math.round(195 + f * 35);
+        } else if (blend < 0.54) {
+          const f = (blend - 0.28) / 0.26;
+          cr = Math.round(108 + f * 115);
+          cg = Math.round(13 - f * 8);
+          cb = Math.round(230 - f * 55);
+        } else if (blend < 0.78) {
+          const f = (blend - 0.54) / 0.24;
+          cr = Math.round(223 + f * 28);
+          cg = Math.round(5 + f * 55);
+          cb = Math.round(175 - f * 95);
         } else {
-          const f = (blend - 0.82) / 0.18;
-          cr = Math.round(250 + f * 5);
-          cg = Math.round(65 + f * 120);
-          cb = Math.round(90 - f * 40);
+          const f = (blend - 0.78) / 0.22;
+          cr = Math.round(251 + f * 4);
+          cg = Math.round(60 + f * 130);
+          cb = Math.round(80 - f * 30);
         }
 
-        // Depth shading: back dots darker & smaller
-        const shade = 0.18 + df * 0.82;
-        const alpha = 0.25 + df * 0.75;
-        const dotR = (0.6 + df * 1.7) * (size / 240);
+        // Depth shading
+        const shade = 0.15 + df * 0.85;
+        const alpha = 0.22 + df * 0.78;
+        // Tighten dot size slightly for denser look
+        const dotR = (0.55 + df * 1.40) * (size / 270);
 
         projected.push({
           sx, sy, sz: pz,
@@ -169,10 +172,9 @@ export function ParticleSphere({ size = 240 }: ParticleSphereProps) {
         });
       }
 
-      // Back-to-front sort
+      // Back-to-front
       projected.sort((a, b) => a.sz - b.sz);
 
-      // Draw
       for (const p of projected) {
         ctx.beginPath();
         ctx.arc(p.sx, p.sy, p.dr, 0, Math.PI * 2);
@@ -180,13 +182,13 @@ export function ParticleSphere({ size = 240 }: ParticleSphereProps) {
         ctx.fill();
       }
 
-      // Soft outer glow
-      const g = ctx.createRadialGradient(cx, cy, R * 0.6, cx, cy, R * 1.4);
-      g.addColorStop(0, "rgba(160,0,220,0.00)");
-      g.addColorStop(0.5, "rgba(120,0,200,0.055)");
-      g.addColorStop(1, "rgba(60,0,160,0.00)");
+      // Ambient outer glow
+      const g = ctx.createRadialGradient(cx, cy, R * 0.55, cx, cy, R * 1.45);
+      g.addColorStop(0, "rgba(150,0,210,0.00)");
+      g.addColorStop(0.5, "rgba(110,0,190,0.05)");
+      g.addColorStop(1, "rgba(60,0,150,0.00)");
       ctx.beginPath();
-      ctx.arc(cx, cy, R * 1.4, 0, Math.PI * 2);
+      ctx.arc(cx, cy, R * 1.45, 0, Math.PI * 2);
       ctx.fillStyle = g;
       ctx.fill();
 

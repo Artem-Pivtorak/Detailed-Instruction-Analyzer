@@ -140,8 +140,8 @@ export default function App() {
         gap: 0,
       }}>
         {/* Particle sphere */}
-        <div style={{ marginBottom: -4 }}>
-          <ParticleSphere size={240} />
+        <div style={{ marginBottom: 22 }}>
+          <ParticleSphere size={270} />
         </div>
 
         {/* Glass frame — static shape, contains the live typewriter text */}
