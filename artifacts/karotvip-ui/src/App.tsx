@@ -138,6 +138,7 @@ export default function App() {
         flexDirection: "column",
         alignItems: "center",
         gap: 0,
+        marginTop: -40,
       }}>
         {/* Particle sphere */}
         <div style={{ marginBottom: 22 }}>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Section = "memory" | "settings" | "reminder" | "plugins" | "commands" | "addcommands" | "people";
 
@@ -18,6 +18,183 @@ const MODULES: { key: Section; name: string; color: string; icon: string }[] = [
   { key: "commands",    name: "COMMANDS",     color: "#06b6d4", icon: "⚡" },
   { key: "addcommands", name: "ADD COMMANDS", color: "#10b981", icon: "➕" },
 ];
+
+interface PluginConfig {
+  id: string;
+  label: string;
+  color: string;
+  options: string[];
+}
+
+const PLUGINS: PluginConfig[] = [
+  { id: "elevenlabs", label: "ELEVENLABS", color: "#00cfff", options: ["ElevenLabs", "Edge", "XTTS"] },
+  { id: "vosk",       label: "VOSK",       color: "#a855f7", options: ["Vosk", "Google SR"] },
+  { id: "picovoice",  label: "PICOVOICE",  color: "#22c55e", options: ["Picovoice", "Vosk", "Rustpotter"] },
+];
+
+function PluginDropdown({
+  plugin,
+  onSound,
+}: {
+  plugin: PluginConfig;
+  onSound: (t: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState(plugin.options[0]);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, []);
+
+  function toggle() {
+    setOpen(v => !v);
+    onSound(open ? "close" : "click");
+  }
+
+  function choose(opt: string) {
+    setSelected(opt);
+    setOpen(false);
+    onSound("switch");
+  }
+
+  return (
+    <div ref={ref} style={{ flex: 1, position: "relative" }}>
+      {/* Main button */}
+      <button
+        onClick={toggle}
+        style={{
+          width: "100%",
+          height: 42,
+          background: open ? `${plugin.color}18` : `${plugin.color}0a`,
+          border: `1px solid ${open ? plugin.color + "55" : plugin.color + "28"}`,
+          borderRadius: open ? "8px 8px 0 0" : 8,
+          cursor: "pointer",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 2,
+          padding: "4px 6px",
+          transition: "all 0.20s ease",
+          boxShadow: open ? `0 0 14px ${plugin.color}30` : "none",
+          position: "relative",
+        }}
+        onMouseEnter={() => onSound("hover")}
+      >
+        {/* Waveform bars */}
+        <div style={{ display: "flex", gap: 2, alignItems: "flex-end", height: 14 }}>
+          {[3, 6, 4, 7, 5, 8, 4].map((h, i) => (
+            <div key={i} style={{
+              width: 2, height: h,
+              background: plugin.color,
+              borderRadius: 1,
+              opacity: open ? 1 : 0.75,
+              transition: "opacity 0.2s",
+            }} />
+          ))}
+        </div>
+        {/* Selected label */}
+        <span style={{
+          fontSize: 7,
+          color: open ? plugin.color : "rgba(255,255,255,0.50)",
+          letterSpacing: "0.05em",
+          fontFamily: "'Courier New', monospace",
+          fontWeight: "bold",
+          transition: "color 0.2s",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          maxWidth: "100%",
+        }}>
+          {selected.toUpperCase()}
+        </span>
+        {/* Chevron */}
+        <span style={{
+          position: "absolute",
+          right: 4, top: 4,
+          fontSize: 7,
+          color: `${plugin.color}80`,
+          transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          transition: "transform 0.2s ease",
+        }}>▾</span>
+      </button>
+
+      {/* Dropdown */}
+      <div style={{
+        position: "absolute",
+        top: "100%",
+        left: 0, right: 0,
+        background: "rgba(4, 12, 26, 0.97)",
+        border: `1px solid ${plugin.color}40`,
+        borderTop: "none",
+        borderRadius: "0 0 8px 8px",
+        overflow: "hidden",
+        maxHeight: open ? 200 : 0,
+        opacity: open ? 1 : 0,
+        transition: "max-height 0.26s cubic-bezier(0.22,1,0.36,1), opacity 0.20s ease",
+        zIndex: 400,
+        boxShadow: open ? `0 8px 24px rgba(0,0,0,0.5), 0 0 18px ${plugin.color}18` : "none",
+      }}>
+        {plugin.options.map((opt, i) => {
+          const isActive = opt === selected;
+          return (
+            <button
+              key={opt}
+              onClick={() => choose(opt)}
+              style={{
+                width: "100%",
+                padding: "7px 10px",
+                background: isActive ? `${plugin.color}18` : "transparent",
+                border: "none",
+                borderBottom: i < plugin.options.length - 1
+                  ? `1px solid ${plugin.color}15`
+                  : "none",
+                cursor: "pointer",
+                textAlign: "left",
+                color: isActive ? plugin.color : "rgba(255,255,255,0.55)",
+                fontSize: 9,
+                fontFamily: "'Courier New', monospace",
+                fontWeight: isActive ? "bold" : "normal",
+                letterSpacing: "0.06em",
+                transition: "background 0.15s, color 0.15s",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+              onMouseEnter={e => {
+                if (!isActive) {
+                  e.currentTarget.style.background = `${plugin.color}10`;
+                  e.currentTarget.style.color = `${plugin.color}cc`;
+                }
+              }}
+              onMouseLeave={e => {
+                if (!isActive) {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = "rgba(255,255,255,0.55)";
+                }
+              }}
+            >
+              <span style={{
+                width: 5, height: 5, borderRadius: "50%",
+                background: isActive ? plugin.color : "rgba(255,255,255,0.2)",
+                flexShrink: 0,
+                boxShadow: isActive ? `0 0 6px ${plugin.color}` : "none",
+                transition: "all 0.15s",
+              }} />
+              {opt.toUpperCase()}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export function SidePanel({ open, onClose, onSound, onOpenSection }: SidePanelProps) {
   const [hovered, setHovered] = useState<string | null>(null);
@@ -54,8 +231,7 @@ export function SidePanel({ open, onClose, onSound, onOpenSection }: SidePanelPr
       <div
         style={{
           position: "fixed",
-          top: 0,
-          left: 0,
+          top: 0, left: 0,
           width: 264,
           height: "100%",
           background: "rgba(4, 12, 26, 0.96)",
@@ -110,54 +286,19 @@ export function SidePanel({ open, onClose, onSound, onOpenSection }: SidePanelPr
           >✕</button>
         </div>
 
-        {/* Plugin icons row */}
+        {/* Plugin dropdowns row */}
         <div style={{
-          padding: "14px 18px",
+          padding: "14px 14px 18px",
           display: "flex",
-          gap: 10,
+          gap: 8,
           borderBottom: "1px solid rgba(0,180,255,0.08)",
           flexShrink: 0,
+          alignItems: "flex-start",
+          position: "relative",
+          zIndex: 350,
         }}>
-          {[
-            { name: "ELEVENLABS", color: "#00cfff" },
-            { name: "VOSK",       color: "#a855f7" },
-            { name: "PICOVOICE",  color: "#22c55e" },
-          ].map(p => (
-            <div key={p.name} style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 6,
-            }}>
-              <div style={{
-                width: "100%",
-                height: 38,
-                background: `${p.color}0a`,
-                border: `1px solid ${p.color}25`,
-                borderRadius: 8,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}>
-                <div style={{ display: "flex", gap: 2, alignItems: "flex-end", height: 18 }}>
-                  {[3, 6, 4, 7, 5, 8, 4].map((h, i) => (
-                    <div key={i} style={{
-                      width: 2.5, height: h,
-                      background: p.color,
-                      borderRadius: 1,
-                      opacity: 0.8,
-                    }} />
-                  ))}
-                </div>
-              </div>
-              <span style={{
-                fontSize: 8, color: "rgba(255,255,255,0.35)",
-                letterSpacing: "0.04em", fontFamily: "'Courier New', monospace",
-              }}>
-                {p.name}
-              </span>
-            </div>
+          {PLUGINS.map(p => (
+            <PluginDropdown key={p.id} plugin={p} onSound={onSound} />
           ))}
         </div>
 
@@ -196,7 +337,6 @@ export function SidePanel({ open, onClose, onSound, onOpenSection }: SidePanelPr
                   textAlign: "left",
                 }}
               >
-                {/* Color dot */}
                 <div style={{
                   width: 28, height: 28,
                   borderRadius: 8,
@@ -223,7 +363,6 @@ export function SidePanel({ open, onClose, onSound, onOpenSection }: SidePanelPr
                   {item.name}
                 </span>
 
-                {/* Arrow */}
                 <div style={{
                   marginLeft: "auto",
                   color: isHov ? item.color : "rgba(255,255,255,0.15)",
