@@ -67,7 +67,7 @@ export function ParticleSphere({ size = 270 }: ParticleSphereProps) {
     }
 
     // ── Ripple pool ─────────────────────────────────────────────────────────
-    const MAX_RIPPLES = 7;
+    const MAX_RIPPLES = 9;
     const ripples: Ripple[] = [];
 
     function spawnRipple(t: number) {
@@ -75,10 +75,10 @@ export function ParticleSphere({ size = 270 }: ParticleSphereProps) {
       ripples.push({
         ox, oy, oz,
         t0: t,
-        amplitude: 0.28 + Math.random() * 0.32,  // 0.28..0.60
-        speed: 0.018 + Math.random() * 0.022,      // how fast the ring expands (rad/frame-unit)
-        freq: 5 + Math.random() * 7,               // ripples per radian within the ring
-        sigma: 0.28 + Math.random() * 0.22,        // ring width
+        amplitude: 0.45 + Math.random() * 0.50,   // 0.45..0.95 — large deformations
+        speed: 0.012 + Math.random() * 0.016,      // slower = more majestic
+        freq: 3.0 + Math.random() * 5.0,           // fewer ripples = wider undulations
+        sigma: 0.42 + Math.random() * 0.38,        // wider rings = bigger surface deformation
       });
     }
 
@@ -97,10 +97,10 @@ export function ParticleSphere({ size = 270 }: ParticleSphereProps) {
 
       const t = frame * 0.007;
 
-      // Gentle tumble
-      rxA += 0.0010 + Math.sin(t * 0.08) * 0.0004;
-      ryA += 0.0016 + Math.sin(t * 0.06) * 0.0005;
-      rzA += 0.0006 + Math.sin(t * 0.11) * 0.0003;
+      // Very slow drift — shape deformation dominates over rotation
+      rxA += 0.00018 + Math.sin(t * 0.04) * 0.00008;
+      ryA += 0.00025 + Math.sin(t * 0.03) * 0.00010;
+      rzA += 0.00008 + Math.sin(t * 0.05) * 0.00005;
 
       // Cull dead ripples (wavefront > π + 1.5 so they fully fade before removal)
       for (let i = ripples.length - 1; i >= 0; i--) {
@@ -112,8 +112,8 @@ export function ParticleSphere({ size = 270 }: ParticleSphereProps) {
       // Keep the pool full
       while (ripples.length < MAX_RIPPLES) spawnRipple(t);
 
-      // Slow global breathing of the whole sphere (droplet surface tension)
-      const breathe = 0.06 * Math.sin(t * 0.45);
+      // Global breathing — slow inhale/exhale of the whole mass
+      const breathe = 0.14 * Math.sin(t * 0.32) + 0.07 * Math.sin(t * 0.55);
 
       // Project all points
       const projected: {
@@ -149,8 +149,8 @@ export function ParticleSphere({ size = 270 }: ParticleSphereProps) {
           totalDisp += rip.amplitude * rippleOsc * env * fade;
         }
 
-        // Clamp total displacement so nothing inverts
-        const disp = Math.max(0.45, 1.0 + totalDisp);
+        // Allow large inward compression (0.28) and outward bulge — no inversion
+        const disp = Math.max(0.28, 1.0 + totalDisp);
 
         let px = p.nx * disp * R;
         let py = p.ny * disp * R;
