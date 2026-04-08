@@ -89,29 +89,51 @@ function playHover(ctx: AudioContext) {
   osc(ctx, g2, 1600, "triangle", t, t + 0.06);
 }
 
-/** click: sharp digital "snap" — layered noise burst + mid tone */
+/** click: smooth sci-fi "activate" pulse — soft, elegant, premium */
 function playClick(ctx: AudioContext) {
   const t = ctx.currentTime;
 
-  // 1. Noise transient (the "snap")
-  const noiseSrc = noise(ctx, 0.05);
-  const nf = bpf(ctx, ctx.destination, 2400, 8);
-  const ng = ctx.createGain();
-  ng.gain.setValueAtTime(0.18, t);
-  ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
-  noiseSrc.connect(nf);
-  ng.connect(ctx.destination);
-  noiseSrc.connect(ng);
-  noiseSrc.start(t);
-  noiseSrc.stop(t + 0.06);
+  // 1. Warm low-mid body — rounded sine that sweeps up then settles
+  //    Sounds like a confident but soft UI confirmation
+  const body = ctx.createGain();
+  body.gain.setValueAtTime(0.0001, t);
+  body.gain.linearRampToValueAtTime(0.14, t + 0.006);
+  body.gain.setValueAtTime(0.14, t + 0.006);
+  body.gain.exponentialRampToValueAtTime(0.0001, t + 0.19);
+  body.connect(ctx.destination);
+  osc(ctx, body, 520, "sine", t, t + 0.21, 680);   // upward pitch = "positive action"
 
-  // 2. Punchy sine body
-  const body = gainEnv(ctx, ctx.destination, 0.13, 0.003, 0.09, t);
-  osc(ctx, body, 900, "sine", t, t + 0.12, 600);
+  // 2. Bright airy overtone — thin sine shimmer above the body
+  const air = ctx.createGain();
+  air.gain.setValueAtTime(0.0001, t + 0.004);
+  air.gain.linearRampToValueAtTime(0.07, t + 0.014);
+  air.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
+  air.connect(ctx.destination);
+  osc(ctx, air, 1560, "sine", t + 0.004, t + 0.26, 1500);
 
-  // 3. Quick upper harmonic ring
-  const ring = gainEnv(ctx, ctx.destination, 0.055, 0.002, 0.07, t);
-  osc(ctx, ring, 1800, "triangle", t, t + 0.09, 1600);
+  // 3. Ultra-short silk noise burst — adds the tactile "touch" feeling without harshness
+  const ns = noise(ctx, 0.022);
+  const silkF = ctx.createBiquadFilter();
+  silkF.type = "bandpass";
+  silkF.frequency.value = 1800;
+  silkF.Q.value = 5;
+  const nsG = ctx.createGain();
+  nsG.gain.setValueAtTime(0.0001, t);
+  nsG.gain.linearRampToValueAtTime(0.055, t + 0.003);
+  nsG.gain.exponentialRampToValueAtTime(0.0001, t + 0.022);
+  ns.connect(silkF);
+  silkF.connect(nsG);
+  nsG.connect(ctx.destination);
+  ns.start(t);
+  ns.stop(t + 0.025);
+
+  // 4. Faint sub-harmonic pulse — subtle depth that makes the sound feel solid
+  const sub = ctx.createGain();
+  sub.gain.setValueAtTime(0.0001, t);
+  sub.gain.linearRampToValueAtTime(0.055, t + 0.005);
+  sub.gain.exponentialRampToValueAtTime(0.0001, t + 0.10);
+  sub.connect(ctx.destination);
+  osc(ctx, sub, 160, "sine", t, t + 0.12, 120);
 }
 
 /** open: futuristic portal whoosh — ascending chord + filtered noise sweep */
