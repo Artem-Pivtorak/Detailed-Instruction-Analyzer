@@ -195,29 +195,44 @@ function playToggle(ctx: AudioContext) {
   osc(ctx, g3, 300, "triangle", t, t + 0.08, 200);
 }
 
-/** switch: satisfying hi-tech confirmation chord */
+/** switch: crystalline select ping — like a glass bead dropping on a hard surface */
 function playSwitch(ctx: AudioContext) {
   const t = ctx.currentTime;
 
-  // Two-tone major chord sweep
-  const pairs: [number, number][] = [[440, 550], [660, 825]];
-  pairs.forEach(([f1, f2], i) => {
-    const start = t + i * 0.04;
-    const g = gainEnv(ctx, ctx.destination, 0.09, 0.01, 0.22, start);
-    osc(ctx, g, f1, "sine", start, start + 0.25, f1 * 1.03);
-    osc(ctx, g, f2, "sine", start, start + 0.25, f2 * 1.02);
-  });
+  // Layer 1: ultra-sharp attack sine ping at high frequency — "glass tap"
+  const g1 = ctx.createGain();
+  g1.gain.setValueAtTime(0.0001, t);
+  g1.gain.linearRampToValueAtTime(0.18, t + 0.003);  // near-instant attack
+  g1.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+  g1.connect(ctx.destination);
+  osc(ctx, g1, 2800, "sine", t, t + 0.20, 2600);      // slight descend = "drop" feel
 
-  // Crisp noise accent
-  const ns = noise(ctx, 0.06);
-  const filt = lpf(ctx, ctx.destination, 5000);
+  // Layer 2: lower harmonic resonance — body of the glass
+  const g2 = ctx.createGain();
+  g2.gain.setValueAtTime(0.0001, t + 0.002);
+  g2.gain.linearRampToValueAtTime(0.09, t + 0.007);
+  g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+  g2.connect(ctx.destination);
+  osc(ctx, g2, 1400, "sine", t + 0.002, t + 0.24, 1380);
+
+  // Layer 3: brief bright noise click at impact — the physical contact
+  const ns = noise(ctx, 0.018);
+  const filt = bpf(ctx, ctx.destination, 4500, 6);
   const ng = ctx.createGain();
-  ng.gain.setValueAtTime(0.08, t);
-  ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+  ng.gain.setValueAtTime(0.12, t);
+  ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.018);
   ns.connect(ng);
   ng.connect(filt);
   ns.start(t);
-  ns.stop(t + 0.07);
+  ns.stop(t + 0.02);
+
+  // Layer 4: faint shimmer overtone that fades slowly — crystal ring-out
+  const g4 = ctx.createGain();
+  g4.gain.setValueAtTime(0.0001, t + 0.005);
+  g4.gain.linearRampToValueAtTime(0.045, t + 0.018);
+  g4.gain.exponentialRampToValueAtTime(0.0001, t + 0.38);
+  g4.connect(ctx.destination);
+  osc(ctx, g4, 4200, "sine", t + 0.005, t + 0.40, 4000);
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────────

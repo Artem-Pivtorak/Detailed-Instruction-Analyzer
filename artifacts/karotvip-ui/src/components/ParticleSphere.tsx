@@ -14,6 +14,27 @@ function rotateZ(x: number, y: number, z: number, a: number): [number, number, n
   return [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a), z];
 }
 
+// A single ripple traveling outward from an origin point on the sphere
+interface Ripple {
+  ox: number; oy: number; oz: number; // origin unit vector
+  t0: number;        // birth time (in frame time units)
+  amplitude: number; // max displacement as fraction of R
+  speed: number;     // wavefront speed in rad/frame-time
+  freq: number;      // spatial oscillations per radian
+  sigma: number;     // wavefront width (gaussian)
+}
+
+function randomOnSphere(): [number, number, number] {
+  const u = Math.random() * 2 - 1;
+  const t = Math.random() * Math.PI * 2;
+  const r = Math.sqrt(1 - u * u);
+  return [r * Math.cos(t), u, r * Math.sin(t)];
+}
+
+function dot3(ax: number, ay: number, az: number, bx: number, by: number, bz: number): number {
+  return ax * bx + ay * by + az * bz;
+}
+
 export function ParticleSphere({ size = 270 }: ParticleSphereProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
@@ -32,26 +53,42 @@ export function ParticleSphere({ size = 270 }: ParticleSphereProps) {
     const COUNT = 2200;
     const goldenAngle = Math.PI * (3 - Math.sqrt(5));
 
-    const pts: {
-      theta: number;
-      phi: number;
-      nx: number; ny: number; nz: number;
-    }[] = [];
+    const pts: { nx: number; ny: number; nz: number }[] = [];
 
     for (let i = 0; i < COUNT; i++) {
       const yN = 1 - (i / (COUNT - 1)) * 2;
       const sinPhi = Math.sqrt(Math.max(0, 1 - yN * yN));
       const theta = goldenAngle * i;
       pts.push({
-        theta,
-        phi: Math.asin(yN),
         nx: Math.cos(theta) * sinPhi,
         ny: yN,
         nz: Math.sin(theta) * sinPhi,
       });
     }
 
-    // Slow global tumble
+    // ── Ripple pool ─────────────────────────────────────────────────────────
+    const MAX_RIPPLES = 7;
+    const ripples: Ripple[] = [];
+
+    function spawnRipple(t: number) {
+      const [ox, oy, oz] = randomOnSphere();
+      ripples.push({
+        ox, oy, oz,
+        t0: t,
+        amplitude: 0.28 + Math.random() * 0.32,  // 0.28..0.60
+        speed: 0.018 + Math.random() * 0.022,      // how fast the ring expands (rad/frame-unit)
+        freq: 5 + Math.random() * 7,               // ripples per radian within the ring
+        sigma: 0.28 + Math.random() * 0.22,        // ring width
+      });
+    }
+
+    // Seed initial ripples staggered in time
+    for (let i = 0; i < MAX_RIPPLES; i++) {
+      const fakeT = -(Math.random() * 3.0); // stagger births into the past
+      spawnRipple(fakeT);
+    }
+
+    // Global rotation — very slow drift
     let rxA = 0, ryA = 0, rzA = 0;
     let frame = 0;
 
@@ -60,40 +97,23 @@ export function ParticleSphere({ size = 270 }: ParticleSphereProps) {
 
       const t = frame * 0.007;
 
-      // Slowly drift tumble speed — organic feel
-      rxA += 0.0013 + Math.sin(t * 0.09) * 0.0005;
-      ryA += 0.0020 + Math.sin(t * 0.07) * 0.0006;
-      rzA += 0.0007 + Math.sin(t * 0.13) * 0.0003;
+      // Gentle tumble
+      rxA += 0.0010 + Math.sin(t * 0.08) * 0.0004;
+      ryA += 0.0016 + Math.sin(t * 0.06) * 0.0005;
+      rzA += 0.0006 + Math.sin(t * 0.11) * 0.0003;
 
-      // ── Turbulent current waves ────────────────────────────────────────────
-      // Instead of simple swells, we compose several waves that interfere
-      // non-linearly, creating current-like streams across the sphere surface.
-      const AMP = 0.60;   // total max displacement (fraction of R)
-
-      function turbulence(theta: number, phi: number): number {
-        // ---- Primary currents (slow large flow bands) ----
-        const c1 = Math.sin(phi * 1.6 + theta * 0.4 + t * 0.55) * 0.38;
-        const c2 = Math.sin(phi * 0.8 - theta * 1.2 + t * 0.42) * 0.32;
-
-        // ---- Secondary ripples (mid-speed crossing streams) ----
-        const r1 = Math.sin(phi * 3.5 + theta * 1.8 - t * 0.95) * 0.22;
-        const r2 = Math.sin(phi * 2.8 - theta * 2.4 + t * 1.10) * 0.18;
-
-        // ---- Interference (multiply two waves → pinch/bulge nodes) ----
-        const i1 = Math.sin(phi * 2.1 + t * 0.72) * Math.cos(theta * 1.5 - t * 0.68) * 0.28;
-        const i2 = Math.cos(phi * 1.3 - t * 0.50) * Math.sin(theta * 2.8 + t * 0.82) * 0.22;
-
-        // ---- Fast surface chop (high frequency tremors) ----
-        const ch1 = Math.sin(phi * 6.0 - theta * 3.5 + t * 1.80) * 0.10;
-        const ch2 = Math.sin(phi * 5.2 + theta * 4.1 - t * 2.10) * 0.08;
-
-        // ---- Deep mega-swell (slow global breathing) ----
-        const ms = Math.sin(phi * 0.6 + theta * 0.3 - t * 0.28) * 0.40;
-
-        const raw = c1 + c2 + r1 + r2 + i1 + i2 + ch1 + ch2 + ms;
-        // Normalise to -1..1 (sum of weights = 1.78)
-        return raw / 1.78;
+      // Cull dead ripples (wavefront > π + 1.5 so they fully fade before removal)
+      for (let i = ripples.length - 1; i >= 0; i--) {
+        const elapsed = t - ripples[i].t0;
+        const wavefront = elapsed * ripples[i].speed;
+        if (wavefront > Math.PI + 1.8) ripples.splice(i, 1);
       }
+
+      // Keep the pool full
+      while (ripples.length < MAX_RIPPLES) spawnRipple(t);
+
+      // Slow global breathing of the whole sphere (droplet surface tension)
+      const breathe = 0.06 * Math.sin(t * 0.45);
 
       // Project all points
       const projected: {
@@ -105,15 +125,37 @@ export function ParticleSphere({ size = 270 }: ParticleSphereProps) {
       for (let i = 0; i < COUNT; i++) {
         const p = pts[i];
 
-        // Displacement along the surface normal
-        const wave = turbulence(p.theta, p.phi);
-        const disp = 1.0 + wave * AMP;
+        // ── Sum ripple displacements at this point ───────────────────────
+        let totalDisp = breathe;
+
+        for (const rip of ripples) {
+          const d = dot3(p.nx, p.ny, p.nz, rip.ox, rip.oy, rip.oz);
+          const angDist = Math.acos(Math.max(-1, Math.min(1, d))); // 0..PI
+          const elapsed = t - rip.t0;
+          const wavefront = elapsed * rip.speed;              // current ring radius (rad)
+
+          // Distance from this particle to the current wavefront ring
+          const distToWave = angDist - wavefront;
+
+          // Gaussian envelope — only particles near the ring are displaced
+          const env = Math.exp(-(distToWave * distToWave) / (2 * rip.sigma * rip.sigma));
+
+          // Oscillation: sin creates the compress/expand ripple pattern
+          const rippleOsc = Math.sin(rip.freq * distToWave);
+
+          // Global fade: the ripple grows and fades as it crosses the sphere
+          const fade = Math.pow(Math.sin(Math.min(Math.max(wavefront, 0), Math.PI)), 0.6);
+
+          totalDisp += rip.amplitude * rippleOsc * env * fade;
+        }
+
+        // Clamp total displacement so nothing inverts
+        const disp = Math.max(0.45, 1.0 + totalDisp);
 
         let px = p.nx * disp * R;
         let py = p.ny * disp * R;
         let pz = p.nz * disp * R;
 
-        // Global rotation
         [px, py, pz] = rotateX(px, py, pz, rxA);
         [px, py, pz] = rotateY(px, py, pz, ryA);
         [px, py, pz] = rotateZ(px, py, pz, rzA);
@@ -127,40 +169,38 @@ export function ParticleSphere({ size = 270 }: ParticleSphereProps) {
         // Depth factor 0=back 1=front
         const df = Math.max(0, Math.min(1, (pz + R * 1.4) / (R * 2.8)));
 
-        // Color: blue/indigo → purple → magenta → warm pink, modulated by wave
+        // Color: tinted by depth and displacement
+        // Compressed areas (inward) → cooler blues; protruding (outward) → warm pinks
+        const dispMod = Math.max(0, Math.min(1, (totalDisp + 0.7) / 1.4));
         const colorV = (p.ny + 1) / 2;
-        const colorU = (p.nx + 1) / 2;
-        const waveMod = (wave + 1) / 2;
-        const blend = colorV * 0.52 + colorU * 0.24 + waveMod * 0.24;
+        const blend = colorV * 0.50 + dispMod * 0.30 + (p.nx + 1) / 2 * 0.20;
 
         let cr, cg, cb;
         if (blend < 0.28) {
           const f = blend / 0.28;
-          cr = Math.round(18 + f * 90);
+          cr = Math.round(15 + f * 90);
           cg = Math.round(8 + f * 5);
-          cb = Math.round(195 + f * 35);
-        } else if (blend < 0.54) {
-          const f = (blend - 0.28) / 0.26;
-          cr = Math.round(108 + f * 115);
+          cb = Math.round(210 + f * 25);
+        } else if (blend < 0.52) {
+          const f = (blend - 0.28) / 0.24;
+          cr = Math.round(105 + f * 120);
           cg = Math.round(13 - f * 8);
-          cb = Math.round(230 - f * 55);
-        } else if (blend < 0.78) {
-          const f = (blend - 0.54) / 0.24;
-          cr = Math.round(223 + f * 28);
-          cg = Math.round(5 + f * 55);
+          cb = Math.round(235 - f * 60);
+        } else if (blend < 0.76) {
+          const f = (blend - 0.52) / 0.24;
+          cr = Math.round(225 + f * 25);
+          cg = Math.round(5 + f * 58);
           cb = Math.round(175 - f * 95);
         } else {
-          const f = (blend - 0.78) / 0.22;
-          cr = Math.round(251 + f * 4);
-          cg = Math.round(60 + f * 130);
+          const f = (blend - 0.76) / 0.24;
+          cr = Math.round(250 + f * 5);
+          cg = Math.round(63 + f * 140);
           cb = Math.round(80 - f * 30);
         }
 
-        // Depth shading
         const shade = 0.15 + df * 0.85;
-        const alpha = 0.22 + df * 0.78;
-        // Tighten dot size slightly for denser look
-        const dotR = (0.55 + df * 1.40) * (size / 270);
+        const alpha = 0.20 + df * 0.80;
+        const dotR = (0.55 + df * 1.38) * (size / 270);
 
         projected.push({
           sx, sy, sz: pz,
