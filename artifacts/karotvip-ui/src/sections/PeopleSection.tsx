@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useI18n } from "../i18n";
+import peopleIcon from "../../../../images-icons/people.png";
 
 interface Person {
   id: number;
@@ -32,7 +34,8 @@ interface PeopleSectionProps {
   onSound: (type: string) => void;
 }
 
-function PersonCard({ person, onChange, onSound }: { person: Person; onChange: (p: Person) => void; onSound: (t: string) => void }) {
+function PersonCard({ person, onChange, onDelete, onSound }: { person: Person; onChange: (p: Person) => void; onDelete: (id: number) => void; onSound: (t: string) => void }) {
+  const { t } = useI18n();
   const color = person.isMain ? "#22c55e" : "#16a34a";
 
   function toggleExpand() {
@@ -60,8 +63,9 @@ function PersonCard({ person, onChange, onSound }: { person: Person; onChange: (
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 16, flexShrink: 0,
           boxShadow: `0 0 12px ${color}44`,
+          overflow: "hidden",
         }}>
-          {person.isMain ? "👤" : "👥"}
+          <img src={peopleIcon} alt="avatar" style={{ width: "60%", height: "60%", objectFit: "contain" }} />
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontFamily: "'Courier New', monospace", fontWeight: "bold", color: "#fff", fontSize: 13 }}>
@@ -71,6 +75,22 @@ function PersonCard({ person, onChange, onSound }: { person: Person; onChange: (
             {person.role}
           </div>
         </div>
+        
+        {/* Delete Button */}
+        {!person.isMain && (
+          <button
+            onClick={() => onDelete(person.id)}
+            style={{
+              background: "none", border: "none", color: "rgba(255,80,80,0.5)",
+              cursor: "pointer", fontSize: 15, transition: "color 0.2s",
+              padding: "4px", display: "flex", alignItems: "center", justifyContent: "center"
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = "#f87171")}
+            onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,80,80,0.5)")}
+            title={t("common.delete")}
+          >🗑</button>
+        )}
+
         <button
           onClick={toggleExpand}
           style={{
@@ -85,23 +105,23 @@ function PersonCard({ person, onChange, onSound }: { person: Person; onChange: (
       {person.expanded && (
         <div style={{ padding: "0 16px 14px", borderTop: "1px solid rgba(34,197,94,0.1)" }}>
           {[
-            ["ID", String(person.id), false],
-            ["Name", person.name, true],
-            ["Status", person.status, true],
-            ["Info", person.info, true],
-            ["Country", person.country, true],
-            ["City", person.city, true],
-            ["Gender", person.gender, true],
-            ["Audio Path", person.audioPath, false],
-          ].map(([label, val, editable]) => (
-            <div key={label} style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+            [t("people.id"), String(person.id), false, "id"],
+            [t("people.name"), person.name, true, "name"],
+            [t("people.status"), person.status, true, "status"],
+            [t("people.info"), person.info, true, "info"],
+            [t("people.country"), person.country, true, "country"],
+            [t("people.city"), person.city, true, "city"],
+            [t("people.gender"), person.gender, true, "gender"],
+            [t("people.audioPath"), person.audioPath, false, "audioPath"],
+          ].map(([label, val, editable, key]) => (
+            <div key={label as string} style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
               <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", width: 72, flexShrink: 0, fontFamily: "'Courier New', monospace", letterSpacing: "0.05em" }}>
                 {label}
               </span>
               {editable ? (
                 <input
                   value={val as string}
-                  onChange={e => onChange({ ...person, [label.toLowerCase()]: e.target.value })}
+                  onChange={e => onChange({ ...person, [key as string]: e.target.value })}
                   style={{
                     flex: 1, background: "rgba(34,197,94,0.06)",
                     border: "1px solid rgba(34,197,94,0.2)",
@@ -125,7 +145,7 @@ function PersonCard({ person, onChange, onSound }: { person: Person; onChange: (
             fontWeight: "bold", cursor: "pointer",
           }}
           onClick={() => onSound("click")}
-          >Зберегти</button>
+          >{t("common.save")}</button>
         </div>
       )}
     </div>
@@ -135,6 +155,7 @@ function PersonCard({ person, onChange, onSound }: { person: Person; onChange: (
 export function PeopleSection({ onClose, onSound }: PeopleSectionProps) {
   const [visible, setVisible] = useState(false);
   const [people, setPeople] = useState(INITIAL_PEOPLE);
+  const { t } = useI18n();
 
   useEffect(() => { setTimeout(() => setVisible(true), 10); }, []);
 
@@ -152,6 +173,11 @@ export function PeopleSection({ onClose, onSound }: PeopleSectionProps) {
       info: "", country: "", city: "", gender: "Unknown",
       audioPath: "", expanded: true, isMain: false,
     }]);
+  }
+
+  function removePerson(id: number) {
+    onSound("click");
+    setPeople(prev => prev.filter(p => p.id !== id));
   }
 
   return (
@@ -186,7 +212,7 @@ export function PeopleSection({ onClose, onSound }: PeopleSectionProps) {
             fontFamily: "'Courier New', monospace", fontSize: 22, fontWeight: "bold",
             color: "#22c55e", textShadow: "0 0 20px rgba(34,197,94,0.8)",
             letterSpacing: "0.2em",
-          }}>PEOPLE</h2>
+          }}>{t("module.people")}</h2>
           <button
             onClick={addPerson}
             style={{
@@ -196,6 +222,7 @@ export function PeopleSection({ onClose, onSound }: PeopleSectionProps) {
               color: "#22c55e", fontSize: 20, cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center",
               lineHeight: 1,
+              paddingBottom: 3, // nudge plus up
             }}
           >+</button>
         </div>
@@ -206,6 +233,7 @@ export function PeopleSection({ onClose, onSound }: PeopleSectionProps) {
               key={p.id}
               person={p}
               onChange={updated => setPeople(prev => prev.map(x => x.id === updated.id ? updated : x))}
+              onDelete={removePerson}
               onSound={onSound}
             />
           ))}

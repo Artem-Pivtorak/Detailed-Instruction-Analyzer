@@ -49,27 +49,49 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "src"),
-      "@assets": path.resolve(import.meta.dirname, "..", "..", "attached_assets"),
+      "@assets": path.resolve(
+        import.meta.dirname,
+        "..",
+        "..",
+        "attached_assets",
+      ),
     },
     dedupe: ["react", "react-dom"],
-  },
-  root: path.resolve(import.meta.dirname),
-  build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
-    emptyOutDir: true,
-  },
-  server: {
-    port,
-    host: "0.0.0.0",
+    deny: ["**/.*"],
+    allow: [
+      path.resolve(import.meta.dirname),
+      path.resolve(import.meta.dirname, "..", "..", "images-icons"),
+    ],
+    build: {
+      outDir: path.resolve(import.meta.dirname, "dist/public"),
+      emptyOutDir: true,
+    },
+    server: {
+      port,
+      fs: {
+        strict: true,
+        deny: ["**/.*"],
+        allow: [
+          path.resolve(import.meta.dirname),
+          path.resolve(import.meta.dirname, "..", "..", "images-icons"),
+        ],
+      },
+    },
     allowedHosts: true,
     fs: {
       strict: true,
       deny: ["**/.*"],
+      allow: [path.resolve(import.meta.dirname, "..", "..", "images-icons")],
     },
   },
   preview: {
     port,
     host: "0.0.0.0",
     allowedHosts: true,
+    fs: {
+      strict: true,
+      deny: ["**/.*"],
+      allow: [path.resolve(import.meta.dirname, "..", "..", "images-icons")],
+    },
   },
 });

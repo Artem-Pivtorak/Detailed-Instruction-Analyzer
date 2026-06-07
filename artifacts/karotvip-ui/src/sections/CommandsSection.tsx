@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useI18n } from "../i18n";
 
 interface Command {
   id: number;
@@ -21,6 +22,7 @@ interface CommandsSectionProps {
 export function CommandsSection({ onClose, onSound }: CommandsSectionProps) {
   const [visible, setVisible] = useState(false);
   const [expanded, setExpanded] = useState<number | null>(null);
+  const { t } = useI18n();
 
   useEffect(() => { setTimeout(() => setVisible(true), 10); }, []);
 
@@ -62,7 +64,7 @@ export function CommandsSection({ onClose, onSound }: CommandsSectionProps) {
             fontFamily: "'Courier New', monospace", fontSize: 22, fontWeight: "bold",
             color: "#06b6d4", textShadow: "0 0 20px rgba(6,182,212,0.8)",
             letterSpacing: "0.2em",
-          }}>COMMANDS</h2>
+          }}>{t("module.commands")}</h2>
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 20px" }}>

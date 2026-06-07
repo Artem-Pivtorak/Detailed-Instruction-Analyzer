@@ -201,6 +201,23 @@
   box-shadow: 0 0 14px rgba(255,40,180,0.55), 0 0 28px rgba(255,40,180,0.25), inset 0 0 12px rgba(255,40,180,0.10);
 }
 
+.neon-gray {
+  background: rgba(160, 160, 160, 0.08);
+  border: 1px solid rgba(160, 160, 160, 0.40);
+  color: rgba(160, 160, 160, 0.70);
+  box-shadow: 0 0 6px rgba(160,160,160,0.15), inset 0 0 6px rgba(160,160,160,0.04);
+}
+.neon-gray::after {
+  background: transparent;
+  box-shadow: 0 0 12px 2px rgba(160,160,160,0.30);
+}
+.neon-gray:hover {
+  background: rgba(160, 160, 160, 0.14);
+  border-color: rgba(160, 160, 160, 0.70);
+  color: #a0a0a0;
+  box-shadow: 0 0 10px rgba(160,160,160,0.40), 0 0 20px rgba(160,160,160,0.15), inset 0 0 10px rgba(160,160,160,0.08);
+}
+
 /* Animations */
 @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes pulse-glow {

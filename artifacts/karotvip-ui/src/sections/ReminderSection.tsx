@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useI18n } from "../i18n";
 
 interface Reminder {
   id: number;
@@ -22,6 +23,7 @@ interface ReminderSectionProps {
 export function ReminderSection({ onClose, onSound }: ReminderSectionProps) {
   const [visible, setVisible] = useState(false);
   const [reminders, setReminders] = useState(INITIAL_REMINDERS);
+  const { t } = useI18n();
 
   useEffect(() => { setTimeout(() => setVisible(true), 10); }, []);
 
@@ -68,13 +70,13 @@ export function ReminderSection({ onClose, onSound }: ReminderSectionProps) {
             fontFamily: "'Courier New', monospace", fontSize: 22, fontWeight: "bold",
             color: "#eab308", textShadow: "0 0 20px rgba(234,179,8,0.8)",
             letterSpacing: "0.2em",
-          }}>REMINDER</h2>
+          }}>{t("module.reminder")}</h2>
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 20px" }}>
           {reminders.length === 0 && (
             <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", padding: 40, fontFamily: "'Courier New', monospace" }}>
-              No reminders
+              {t("reminder.noReminders")}
             </div>
           )}
           {reminders.map(rem => (
@@ -100,7 +102,7 @@ export function ReminderSection({ onClose, onSound }: ReminderSectionProps) {
                     fontFamily: "'Courier New', monospace", marginBottom: 6,
                     letterSpacing: "0.08em",
                   }}>
-                    TIME: {rem.time} DATA {rem.date}
+                    {t("reminder.time")}: {rem.time} {t("reminder.date")} {rem.date}
                   </div>
                   <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, margin: 0 }}>
                     {rem.text}
@@ -116,7 +118,7 @@ export function ReminderSection({ onClose, onSound }: ReminderSectionProps) {
                   }}
                   onMouseEnter={e => (e.currentTarget.style.color = "#f87171")}
                   onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,80,80,0.5)")}
-                  title="Delete"
+                  title={t("common.delete")}
                 >🗑</button>
               </div>
             </div>

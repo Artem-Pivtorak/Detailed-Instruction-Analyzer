@@ -1,0 +1,165 @@
+import React, { createContext, useContext } from "react";
+
+type Lang = "EN" | "RU" | "UK";
+
+const translations: Record<Lang, Record<string, string>> = {
+  EN: {
+    appName: "M.A.R.T.I.N.",
+    footer:
+      "Copyright © 2019-2026 M.A.R.T.I.N. Industries Inc. All rights reserved.",
+    "module.memory": "MEMORY",
+    "module.settings": "SETTINGS",
+    "module.people": "PEOPLE",
+    "module.reminder": "REMINDER",
+    "module.plugins": "PLUGINS",
+    "module.commands": "COMMANDS",
+    "module.addcommands": "ADD COMMANDS",
+    "module.worldmap": "WORLD MAP",
+    "common.save": "SAVE",
+    "common.delete": "DELETE",
+    "common.cancel": "CANCEL",
+    "common.choose": "CHOOSE",
+    "common.edit": "EDIT",
+    "common.noData": "NO DATA",
+    "memory.unload": "UNLOAD",
+    "memory.full": "FULL",
+    "reminder.time": "TIME",
+    "reminder.date": "DATE",
+    "reminder.noReminders": "No reminders",
+    "people.id": "ID",
+    "people.name": "Name",
+    "people.status": "Status",
+    "people.info": "Info",
+    "people.country": "Country",
+    "people.city": "City",
+    "people.gender": "Gender",
+    "people.audioPath": "Audio Path",
+    "settings.apiKeys": "API KEYS",
+    "settings.language": "LANGUAGE",
+    "settings.city": "City",
+    "settings.storage": "Storage path",
+    "settings.sound": "Sound Off / On",
+    "settings.voice": "System Text & Voice",
+    "addCommands.openProgram": "Open Program",
+    "addCommands.addProtocol": "Add Protocol",
+    "addCommands.programName": "Program name...",
+    "addCommands.programPath": "Program path...",
+    "addCommands.openYoutube": "Open video on YouTube",
+    "addCommands.protocolName": "Protocol name...",
+    "addCommands.add": "Add",
+  },
+  RU: {
+    appName: "M.A.R.T.I.N.",
+    footer: "© 2019-2026 M.A.R.T.I.N. Industries Inc. Все права защищены.",
+    "module.memory": "ПАМЯТЬ",
+    "module.settings": "НАСТРОЙКИ",
+    "module.people": "ЛЮДИ",
+    "module.reminder": "УВЕДОМЛЕНИЕ",
+    "module.plugins": "ПЛАГИНЫ",
+    "module.commands": "КОМАНДЫ",
+    "module.addcommands": "ДОБАВИТЬ КОМАНДЫ",
+    "module.worldmap": "КАРТА МИРА",
+    "common.save": "СОХРАНИТЬ",
+    "common.delete": "УДАЛИТЬ",
+    "common.cancel": "ОТМЕНА",
+    "common.choose": "ВЫБРАТЬ",
+    "common.edit": "ИЗМЕНИТЬ",
+    "common.noData": "НЕТ ДАННЫХ",
+    "memory.unload": "ВЫГРУЗИТЬ",
+    "memory.full": "ЗАПОЛНЕНО",
+    "reminder.time": "ВРЕМЯ",
+    "reminder.date": "ДАТА",
+    "reminder.noReminders": "Нет уведомлений",
+    "people.id": "ID",
+    "people.name": "Имя",
+    "people.status": "Статус",
+    "people.info": "Инфо",
+    "people.country": "Страна",
+    "people.city": "Город",
+    "people.gender": "Пол",
+    "people.audioPath": "Путь к аудио",
+    "settings.apiKeys": "API КЛЮЧИ",
+    "settings.language": "ЯЗЫК",
+    "settings.city": "Город",
+    "settings.storage": "Путь хранения",
+    "settings.sound": "Звук Выкл / Вкл",
+    "settings.voice": "Системный текст и голос",
+    "addCommands.openProgram": "Открыть программу",
+    "addCommands.addProtocol": "Добавить протокол",
+    "addCommands.programName": "Имя программы...",
+    "addCommands.programPath": "Путь к программе...",
+    "addCommands.openYoutube": "Открыть видео на YouTube",
+    "addCommands.protocolName": "Название протокола...",
+    "addCommands.add": "Добавить",
+  },
+  UK: {
+    appName: "M.A.R.T.I.N.",
+    footer: "© 2019-2026 M.A.R.T.I.N. Industries Inc. Всі права захищені.",
+    "module.memory": "ПАМ'ЯТЬ",
+    "module.settings": "НАЛАШТУВАННЯ",
+    "module.people": "ЛЮДИ",
+    "module.reminder": "НАГАДУВАННЯ",
+    "module.plugins": "ПЛАГІНИ",
+    "module.commands": "КОМАНДИ",
+    "module.addcommands": "ДОДАТИ КОМАНДИ",
+    "module.worldmap": "КАРТА СВІТУ",
+    "common.save": "ЗБЕРЕГТИ",
+    "common.delete": "ВИДАЛИТИ",
+    "common.cancel": "СКАСУВАТИ",
+    "common.choose": "ВИБРАТИ",
+    "common.edit": "РЕДАГУВАТИ",
+    "common.noData": "НЕМАЄ ДАНИХ",
+    "memory.unload": "ВИГРУЗИТИ",
+    "memory.full": "ЗАПОВНЕНО",
+    "reminder.time": "ЧАС",
+    "reminder.date": "ДАТА",
+    "reminder.noReminders": "Немає нагадувань",
+    "people.id": "ID",
+    "people.name": "Ім'я",
+    "people.status": "Статус",
+    "people.info": "Інфо",
+    "people.country": "Країна",
+    "people.city": "Місто",
+    "people.gender": "Стать",
+    "people.audioPath": "Шлях до аудіо",
+    "settings.apiKeys": "API КЛЮЧІ",
+    "settings.language": "МОВА",
+    "settings.city": "Місто",
+    "settings.storage": "Шлях збереження",
+    "settings.sound": "Звук Вимк / Увімк",
+    "settings.voice": "Системний текст та голос",
+    "addCommands.openProgram": "Відкрити програму",
+    "addCommands.addProtocol": "Додати протокол",
+    "addCommands.programName": "Ім'я програми...",
+    "addCommands.programPath": "Шлях до програми...",
+    "addCommands.openYoutube": "Відкрити відео на YouTube",
+    "addCommands.protocolName": "Назва протоколу...",
+    "addCommands.add": "Додати",
+  },
+};
+
+const I18nContext = createContext<{ lang: Lang; t: (k: string) => string }>({
+  lang: "EN",
+  t: (k) => k,
+});
+
+export function I18nProvider({
+  lang,
+  children,
+}: {
+  lang: Lang;
+  children: React.ReactNode;
+}) {
+  const t = (k: string) => {
+    return translations[lang] && translations[lang][k]
+      ? translations[lang][k]
+      : k;
+  };
+  return (
+    <I18nContext.Provider value={{ lang, t }}>{children}</I18nContext.Provider>
+  );
+}
+
+export function useI18n() {
+  return useContext(I18nContext);
+}

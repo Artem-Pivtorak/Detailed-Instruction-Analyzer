@@ -4,18 +4,47 @@ interface ParticleSphereProps {
   size?: number;
 }
 
-function rotateX(x: number, y: number, z: number, a: number): [number, number, number] {
-  return [x, y * Math.cos(a) - z * Math.sin(a), y * Math.sin(a) + z * Math.cos(a)];
+function rotateX(
+  x: number,
+  y: number,
+  z: number,
+  a: number,
+): [number, number, number] {
+  return [
+    x,
+    y * Math.cos(a) - z * Math.sin(a),
+    y * Math.sin(a) + z * Math.cos(a),
+  ];
 }
-function rotateY(x: number, y: number, z: number, a: number): [number, number, number] {
-  return [x * Math.cos(a) + z * Math.sin(a), y, -x * Math.sin(a) + z * Math.cos(a)];
+function rotateY(
+  x: number,
+  y: number,
+  z: number,
+  a: number,
+): [number, number, number] {
+  return [
+    x * Math.cos(a) + z * Math.sin(a),
+    y,
+    -x * Math.sin(a) + z * Math.cos(a),
+  ];
 }
-function rotateZ(x: number, y: number, z: number, a: number): [number, number, number] {
-  return [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a), z];
+function rotateZ(
+  x: number,
+  y: number,
+  z: number,
+  a: number,
+): [number, number, number] {
+  return [
+    x * Math.cos(a) - y * Math.sin(a),
+    x * Math.sin(a) + y * Math.cos(a),
+    z,
+  ];
 }
 
 interface Ripple {
-  ox: number; oy: number; oz: number;
+  ox: number;
+  oy: number;
+  oz: number;
   t0: number;
   amplitude: number;
   speed: number;
@@ -30,7 +59,14 @@ function randomOnSphere(): [number, number, number] {
   return [r * Math.cos(th), u, r * Math.sin(th)];
 }
 
-function dot3(ax: number, ay: number, az: number, bx: number, by: number, bz: number): number {
+function dot3(
+  ax: number,
+  ay: number,
+  az: number,
+  bx: number,
+  by: number,
+  bz: number,
+): number {
   return ax * bx + ay * by + az * bz;
 }
 
@@ -56,59 +92,78 @@ export function ParticleSphere({ size = 270 }: ParticleSphereProps) {
       const yN = 1 - (i / (COUNT - 1)) * 2;
       const sinPhi = Math.sqrt(Math.max(0, 1 - yN * yN));
       const theta = goldenAngle * i;
-      pts.push({ nx: Math.cos(theta) * sinPhi, ny: yN, nz: Math.sin(theta) * sinPhi });
+      pts.push({
+        nx: Math.cos(theta) * sinPhi,
+        ny: yN,
+        nz: Math.sin(theta) * sinPhi,
+      });
     }
 
     // Ripple pool — moderate amplitude to keep sphere shape intact
     const MAX_RIPPLES = 8;
     const ripples: Ripple[] = [];
 
-    function spawnRipple(t: number) {
+    function spawnRipple(t: number, opts?: Partial<Ripple>) {
       const [ox, oy, oz] = randomOnSphere();
       ripples.push({
-        ox, oy, oz, t0: t,
-        amplitude: 0.12 + Math.random() * 0.16,  // 0.12..0.28 — surface waves, sphere shape preserved
-        speed: 0.013 + Math.random() * 0.014,
-        freq: 3.5 + Math.random() * 5.0,
-        sigma: 0.30 + Math.random() * 0.28,
+        ox,
+        oy,
+        oz,
+        t0: t,
+        amplitude: opts?.amplitude ?? 0.1 + Math.random() * 0.14,
+        speed: opts?.speed ?? 0.008 + Math.random() * 0.01,
+        freq: opts?.freq ?? 3.0 + Math.random() * 3.0,
+        sigma: opts?.sigma ?? 0.28 + Math.random() * 0.32,
       });
     }
 
     // Seed staggered
     for (let i = 0; i < MAX_RIPPLES; i++) spawnRipple(-(Math.random() * 3.5));
 
-    let rxA = 0, ryA = 0, rzA = 0;
+    let rxA = 0,
+      ryA = 0,
+      rzA = 0;
 
     // ── Time accumulator with random speed drift ────────────────────────────
-    // t is no longer frame * constant; instead it accumulates with a speed
-    // modulator that slowly wanders between fast and slow.
+    // t accumulates with a livelier speed modulator for a more dynamic feel.
     let t = 0;
     let speedPhase = Math.random() * Math.PI * 2; // random start point
 
     function draw() {
       ctx.clearRect(0, 0, size, size);
 
-      // Speed modulator: layered sines create an organic "heartbeat" tempo
-      // Range: approximately 0.30 → 1.90 × base speed
-      speedPhase += 0.007;
+      // Speed modulator: layered sines create a gentle, slower tempo
+      speedPhase += 0.004;
       const rawSpeed =
-        1.0
-        + 0.55 * Math.sin(speedPhase * 0.31)
-        + 0.28 * Math.sin(speedPhase * 0.71 + 1.3)
-        + 0.14 * Math.sin(speedPhase * 1.40 - 0.7);
-      const speedMod = Math.max(0.30, Math.min(1.85, rawSpeed));
+        1.0 +
+        0.45 * Math.sin(speedPhase * 0.32) +
+        0.22 * Math.sin(speedPhase * 0.68 + 1.0) +
+        0.08 * Math.sin(speedPhase * 1.28 - 0.5);
+      const speedMod = Math.max(0.4, Math.min(1.5, rawSpeed));
 
-      // Accumulate time with variable speed
-      t += 0.007 * speedMod;
+      // Accumulate time with variable speed (slower base)
+      t += 0.004 * speedMod;
 
-      // Very slow axis drift so orientation changes subtly over time
-      rxA += 0.00015 * speedMod;
-      ryA += 0.00022 * speedMod;
-      rzA += 0.00007 * speedMod;
+      // Subtle axis drift for a calmer rotation
+      rxA += 0.00012 * speedMod;
+      ryA += 0.00018 * speedMod;
+      rzA += 0.00005 * speedMod;
+
+      // Occasionally spawn an energetic burst for more dynamic movement
+      // Rare gentle energetic bursts to keep things interesting
+      if (Math.random() < 0.006) {
+        spawnRipple(t, {
+          amplitude: 0.22 + Math.random() * 0.18,
+          speed: 0.016 + Math.random() * 0.012,
+          freq: 4.5 + Math.random() * 3.5,
+          sigma: 0.18 + Math.random() * 0.18,
+        });
+      }
 
       // Cull dead ripples
       for (let i = ripples.length - 1; i >= 0; i--) {
-        if ((t - ripples[i].t0) * ripples[i].speed > Math.PI + 1.6) ripples.splice(i, 1);
+        if ((t - ripples[i].t0) * ripples[i].speed > Math.PI + 1.6)
+          ripples.splice(i, 1);
       }
       while (ripples.length < MAX_RIPPLES) spawnRipple(t);
 
@@ -116,8 +171,13 @@ export function ParticleSphere({ size = 270 }: ParticleSphereProps) {
       const breathe = 0.05 * Math.sin(t * 0.38) + 0.025 * Math.sin(t * 0.62);
 
       const projected: {
-        sx: number; sy: number; sz: number;
-        cr: number; cg: number; cb: number; ca: number;
+        sx: number;
+        sy: number;
+        sz: number;
+        cr: number;
+        cg: number;
+        cb: number;
+        ca: number;
         dr: number;
       }[] = [];
 
@@ -133,14 +193,19 @@ export function ParticleSphere({ size = 270 }: ParticleSphereProps) {
           const elapsed = t - rip.t0;
           const wavefront = elapsed * rip.speed;
           const distToWave = angDist - wavefront;
-          const env = Math.exp(-(distToWave * distToWave) / (2 * rip.sigma * rip.sigma));
+          const env = Math.exp(
+            -(distToWave * distToWave) / (2 * rip.sigma * rip.sigma),
+          );
           const rippleOsc = Math.sin(rip.freq * distToWave);
-          const fade = Math.pow(Math.sin(Math.min(Math.max(wavefront, 0), Math.PI)), 0.55);
+          const fade = Math.pow(
+            Math.sin(Math.min(Math.max(wavefront, 0), Math.PI)),
+            0.55,
+          );
           totalDisp += rip.amplitude * rippleOsc * env * fade;
         }
 
         // Clamp: sphere stays recognisably round — max ±30% deformation
-        const disp = Math.max(0.70, Math.min(1.30, 1.0 + totalDisp));
+        const disp = Math.max(0.7, Math.min(1.3, 1.0 + totalDisp));
 
         let px = p.nx * disp * R;
         let py = p.ny * disp * R;
@@ -150,6 +215,17 @@ export function ParticleSphere({ size = 270 }: ParticleSphereProps) {
         [px, py, pz] = rotateY(px, py, pz, ryA);
         [px, py, pz] = rotateZ(px, py, pz, rzA);
 
+        // Wavy bending: milder, slower undulations for a calmer organic look
+        const waveAmpBase = 0.03; // base amplitude (fraction of R)
+        const waveSpeed = 1.0 + 0.8 * Math.sin(t * 0.6 + p.nx * 0.9);
+        const waveX =
+          waveAmpBase * Math.sin(p.ny * 4.0 + t * waveSpeed + p.nz * 1.2);
+        const waveY =
+          waveAmpBase *
+          Math.cos(p.nx * 3.5 + t * (waveSpeed * 0.9) - p.nz * 1.0);
+        px += waveX * R;
+        py += waveY * R;
+
         const fov = size * 2.0;
         const scale = fov / (fov + pz + R * 0.4);
         const sx = cx + px * scale;
@@ -158,9 +234,9 @@ export function ParticleSphere({ size = 270 }: ParticleSphereProps) {
         const df = Math.max(0, Math.min(1, (pz + R * 1.4) / (R * 2.8)));
 
         // Color: displacement-modulated tint on top of positional gradient
-        const dispMod = Math.max(0, Math.min(1, (totalDisp + 0.35) / 0.70));
+        const dispMod = Math.max(0, Math.min(1, (totalDisp + 0.35) / 0.7));
         const colorV = (p.ny + 1) / 2;
-        const blend = colorV * 0.50 + dispMod * 0.28 + (p.nx + 1) / 2 * 0.22;
+        const blend = colorV * 0.5 + dispMod * 0.28 + ((p.nx + 1) / 2) * 0.22;
 
         let cr, cg, cb;
         if (blend < 0.28) {
@@ -186,11 +262,14 @@ export function ParticleSphere({ size = 270 }: ParticleSphereProps) {
         }
 
         const shade = 0.15 + df * 0.85;
-        const alpha = 0.20 + df * 0.80;
-        const dotR = (0.55 + df * 1.38) * (size / 270);
+        const alpha = 0.2 + df * 0.8;
+        const dotPulse = 1 + 0.03 * Math.sin(t * 4.0 + i);
+        const dotR = (0.6 + df * 1.28) * (size / 270) * dotPulse;
 
         projected.push({
-          sx, sy, sz: pz,
+          sx,
+          sy,
+          sz: pz,
           cr: Math.round(cr * shade),
           cg: Math.round(cg * shade),
           cb: Math.round(cb * shade),
