@@ -35,7 +35,7 @@ function Switch({
         style={{
           fontSize: 12,
           color: "rgba(255,255,255,0.7)",
-          fontFamily: "'Courier New', monospace",
+          fontFamily: "'RexBold', sans-serif",
           letterSpacing: "0.05em",
         }}
       >
@@ -108,7 +108,7 @@ function GlassPlaqueCycler({
         style={{
           fontSize: 13,
           color: "rgba(255,255,255,0.8)",
-          fontFamily: "'Courier New', monospace",
+          fontFamily: "'RexBold', sans-serif"
         }}
       >
         {value}
@@ -137,7 +137,7 @@ function ApiKeyPlaque({ name, t }: { name: string, t: (k:string)=>string }) {
         style={{
           fontSize: 12,
           color: "rgba(255,255,255,0.7)",
-          fontFamily: "'Courier New', monospace",
+          fontFamily: "'RexBold', sans-serif",
           flex: 1,
         }}
       >
@@ -155,7 +155,7 @@ function ApiKeyPlaque({ name, t }: { name: string, t: (k:string)=>string }) {
             outline: "none",
             color: "#c084fc",
             fontSize: 12,
-            fontFamily: "'Courier New', monospace",
+            fontFamily: "'RexBold', sans-serif",
             width: 80,
           }}
         />
@@ -296,7 +296,7 @@ export function SettingsSection({
           >
             <h2
               style={{
-                fontFamily: "'Courier New', monospace",
+                fontFamily: "'RexBold', sans-serif",
                 fontSize: 22,
                 fontWeight: "bold",
                 color: "#a855f7",
@@ -315,7 +315,7 @@ export function SettingsSection({
               fontSize: 11,
               color: "#a855f7",
               letterSpacing: "0.15em",
-              fontFamily: "'Courier New', monospace",
+              fontFamily: "'RexBold', sans-serif",
               marginBottom: 8,
             }}
           >
@@ -339,7 +339,7 @@ export function SettingsSection({
               fontSize: 11,
               color: "#a855f7",
               letterSpacing: "0.15em",
-              fontFamily: "'Courier New', monospace",
+              fontFamily: "'RexBold', sans-serif",
               marginBottom: 8,
             }}
           >
@@ -465,7 +465,7 @@ export function SettingsSection({
                     fontSize: 9,
                     color: "rgba(255,255,255,0.4)",
                     letterSpacing: "0.1em",
-                    fontFamily: "'Courier New', monospace",
+                    fontFamily: "'RexBold', sans-serif",
                   }}
                 >
                   {label}
@@ -475,7 +475,7 @@ export function SettingsSection({
                     fontSize: 14,
                     color,
                     fontWeight: "bold",
-                    fontFamily: "'Courier New', monospace",
+                    fontFamily: "'RexBold', sans-serif",
                     marginTop: 2,
                   }}
                 >

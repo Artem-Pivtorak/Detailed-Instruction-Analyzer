@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { ParticleSphere } from "./components/ParticleSphere";
 import { SidePanel } from "./components/SidePanel";
+import { LiquidGlass } from "./components/LiquidGlass";
 import { MemorySection } from "./sections/MemorySection";
 import { SettingsSection } from "./sections/SettingsSection";
 import { ReminderSection } from "./sections/ReminderSection";
@@ -8,8 +10,6 @@ import { PluginsSection } from "./sections/PluginsSection";
 import { CommandsSection } from "./sections/CommandsSection";
 import { AddCommandsSection } from "./sections/AddCommandsSection";
 import { PeopleSection } from "./sections/PeopleSection";
-import { KrakenSection } from "./sections/KrakenSection";
-import { WorldMapSection } from "./sections/WorldMapSection";
 import { useSound } from "./hooks/useSound";
 
 type Section =
@@ -20,8 +20,6 @@ type Section =
   | "commands"
   | "addcommands"
   | "people"
-  | "kraken"
-  | "worldmap"
   | null;
 
 const CONSOLE_LINES = [
@@ -41,6 +39,22 @@ import { I18nProvider, useI18n } from "./i18n";
 
 function Footer() {
   const { t } = useI18n();
+  const [typedText, setTypedText] = useState("");
+  const fullText = t("footer");
+
+  useEffect(() => {
+    let index = 0;
+    const interval = setInterval(() => {
+      if (index < fullText.length) {
+        setTypedText(fullText.slice(0, index + 1));
+        index++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 40);
+    return () => clearInterval(interval);
+  }, [fullText]);
+
   return (
     <div
       style={{
@@ -51,13 +65,14 @@ function Footer() {
         textAlign: "center",
         fontSize: 11,
         color: "rgba(160,160,160,0.35)",
-        fontFamily: "Arial, 'Segoe UI', sans-serif",
+        fontFamily: "pdark",
         letterSpacing: "0.02em",
         userSelect: "none",
         zIndex: 5,
+        minHeight: 14 // To prevent jumping layout during typing
       }}
     >
-      {t("footer")}
+      {typedText}
     </div>
   );
 }
@@ -73,6 +88,12 @@ export default function App() {
   const [lineIdx, setLineIdx] = useState(0);
   const [charIdx, setCharIdx] = useState(0);
   const { play } = useSound(soundEnabled);
+  
+  const consoleEndRef = useRef<HTMLDivElement>(null);
+  const isAtBottomRef = useRef(true);
+  
+  // Tilt animation refs (disabled - frame is static)
+  const frameRef = useRef<HTMLDivElement>(null);
 
   const playSound = useCallback(
     (type: string) => {
@@ -95,6 +116,13 @@ export default function App() {
     };
   }, []);
 
+  // Auto-scroll to bottom of console (only if already near bottom)
+  useEffect(() => {
+    if (isAtBottomRef.current) {
+      consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [consoleLines, currentLine]);
+
   // Typewriter effect — fills lines inside the frame
   useEffect(() => {
     const line = CONSOLE_LINES[lineIdx];
@@ -107,11 +135,7 @@ export default function App() {
     } else {
       const t = setTimeout(() => {
         // Commit this line, start the next
-        setConsoleLines((prev) => {
-          const next = [...prev, line];
-          // Keep max 8 lines visible
-          return next.length > 8 ? next.slice(next.length - 8) : next;
-        });
+        setConsoleLines((prev) => [...prev, line]);
         setCurrentLine("");
         setLineIdx((i) => (i + 1) % CONSOLE_LINES.length);
         setCharIdx(0);
@@ -142,7 +166,7 @@ export default function App() {
           justifyContent: "center",
           overflow: "hidden",
           position: "relative",
-          fontFamily: "'Segoe UI', Arial, sans-serif",
+          fontFamily: "'RexBold', sans-serif",
         }}
       >
         {/* Ambient gradient blob */}
@@ -163,19 +187,26 @@ export default function App() {
         />
 
         {/* Top-right: neon microphone */}
-        <div style={{ position: "absolute", top: 16, right: 16, zIndex: 50 }}>
-          <button
-            className={`neon-btn ${micActive ? "neon-pink" : "neon-gray"}`}
+        <motion.div 
+          style={{ position: "absolute", top: 20, right: 20, zIndex: 50 }}
+          initial={{ x: 100, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
+        >
+          <motion.button
+            className={`neon-btn motion-gpu ${micActive ? "neon-pink" : "neon-gray"}`}
+            whileHover={{ scale: 1.15, rotate: 5 }}
+            whileTap={{ scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 600, damping: 30 }}
             onClick={() => {
               setMicActive(!micActive);
               playSound("toggle");
             }}
             style={{
               borderRadius: "50%",
-              width: 38,
-              height: 38,
-              fontSize: 17,
-              backdropFilter: "blur(12px)",
+              width: 52,
+              height: 52,
+              fontSize: 24,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -184,30 +215,42 @@ export default function App() {
             title="Microphone"
           >
             🎙
-          </button>
-        </div>
+          </motion.button>
+        </motion.div>
 
         {/* Top-left: neon menu */}
-        <div style={{ position: "absolute", top: 16, left: 16, zIndex: 50 }}>
-          <button
-            className="neon-btn neon-cyan"
+        <motion.div 
+          style={{ position: "absolute", top: 20, left: 20, zIndex: 50 }}
+          initial={{ x: -100, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
+        >
+          <motion.button
+            className="neon-btn neon-cyan motion-gpu"
+            whileHover={{ scale: 1.15, rotate: -5 }}
+            whileTap={{ scale: 0.94 }}
             onClick={() => {
               setSidePanel(true);
               playSound("open");
             }}
             style={{
-              borderRadius: 9,
-              padding: "8px 12px",
-              fontSize: 17,
-              backdropFilter: "blur(12px)",
-              letterSpacing: "0.05em",
+              borderRadius: "50%",
+              width: 52,
+              height: 52,
+              fontSize: 24,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "rgba(0, 220, 255, 0.08)",
+              border: "1px solid rgba(0, 220, 255, 0.55)",
+              color: "rgba(0, 220, 255, 0.90)",
             }}
             onMouseEnter={() => playSound("hover")}
             title="Menu"
           >
             ☰
-          </button>
-        </div>
+          </motion.button>
+        </motion.div>
 
         {/* Main layout */}
         <div
@@ -222,79 +265,98 @@ export default function App() {
           }}
         >
           {/* Particle sphere */}
-          <div style={{ marginBottom: 22 }}>
-            <ParticleSphere size={270} />
+          <div style={{ marginBottom: 30 }}>
+            <ParticleSphere size={350} />
           </div>
 
-          {/* Glass frame — static shape, contains the live typewriter text */}
-          <div
-            className="glass-blue"
+          {/* Glass frame — liquid glass CSS style */}
+          <motion.div
+            ref={frameRef}
+            initial={{ y: 80, opacity: 0, scale: 0.96 }}
+            animate={{ y: 0.001, opacity: 1, scale: 1 }} // 0.001 forces GPU transform to stay active
+            transition={{ type: "spring", stiffness: 90, damping: 14, mass: 1.2, delay: 2.2 }}
             style={{
-              width: 340,
-              height: 178,
-              borderRadius: 16,
-              padding: "14px 18px",
-              boxShadow:
-                "0 0 40px rgba(120,0,255,0.12), inset 0 1px 0 rgba(255,255,255,0.06)",
+              width: 480,
+              height: 240,
+              borderRadius: 20,
+              padding: 0, // Expanded to edges
               position: "relative",
               overflow: "hidden",
               flexShrink: 0,
+              willChange: "transform, opacity", // Hint for stacking context
             }}
           >
-            {/* Subtle inner glow at top */}
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: "10%",
-                right: "10%",
-                height: 1,
-                background:
-                  "linear-gradient(90deg, transparent, rgba(180,80,255,0.4), transparent)",
-                pointerEvents: "none",
-              }}
+            <LiquidGlass
+              width={480}
+              height={240}
+              borderRadius={20}
+              style={{ zIndex: 0 }}
             />
-
             <div
+              className="glass-content hologram-container"
+              onScroll={(e) => {
+                const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+                // Threshold of 10px to consider "at bottom"
+                isAtBottomRef.current = scrollHeight - scrollTop - clientHeight < 10;
+              }}
               style={{
-                fontFamily: "'Courier New', monospace",
-                fontSize: 11,
-                color: "rgba(255,255,255,0.65)",
-                lineHeight: 1.8,
+                position: "relative",
+                zIndex: 3,
+                fontFamily: "'RexBold', monospace",
+                fontSize: 14,
+                lineHeight: 1.9,
+                height: "100%",
+                padding: 0,
+                overflowY: "auto",
+                scrollbarWidth: "none",
               }}
             >
-              {/* Committed lines */}
-              {consoleLines.map((line, i) => (
-                <div
-                  key={i}
-                  style={{
-                    color: line.startsWith("SYSTEM:")
-                      ? "#c084fc"
-                      : "rgba(255,255,255,0.55)",
-                    opacity: 0.6 + (i / consoleLines.length) * 0.4,
-                  }}
-                >
-                  {line}
+              <div
+                className="hologram-text"
+                style={{ 
+                  position: "relative", 
+                  minHeight: "100%",
+                  padding: "12px 16px",
+                }}
+              >
+                {/* Committed lines */}
+                {consoleLines.map((line, i) => (
+                  <div
+                    key={i}
+                    className={
+                      line.startsWith("SYSTEM:")
+                        ? "hologram-line-purple"
+                        : "hologram-line-white"
+                    }
+                    style={{
+                      opacity: 0.6 + (i / Math.max(1, consoleLines.length)) * 0.4,
+                      position: "relative",
+                    }}
+                  >
+                    {line}
+                  </div>
+                ))}
+                {/* Currently typing line */}
+                <div className="hologram-text" style={{ color: "#e2c0ff" }}>
+                  {currentLine}
+                  <span
+                    style={{
+                      display: "inline-block",
+                      width: 7,
+                      height: 12,
+                      background: "#c084fc",
+                      marginLeft: 1,
+                      verticalAlign: "middle",
+                      boxShadow: "0 0 8px #c084fc",
+                      animation: "blink-cursor 0.9s step-end infinite",
+                    }}
+                  />
                 </div>
-              ))}
-              {/* Currently typing line */}
-              <div style={{ color: "#e2c0ff" }}>
-                {currentLine}
-                <span
-                  style={{
-                    display: "inline-block",
-                    width: 7,
-                    height: 12,
-                    background: "#c084fc",
-                    marginLeft: 1,
-                    verticalAlign: "middle",
-                    opacity: 1,
-                    animation: "blink-cursor 0.9s step-end infinite",
-                  }}
-                />
+                {/* Scroll anchor */}
+                <div ref={consoleEndRef} style={{ height: 1 }} />
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
 
         {/* Footer */}
@@ -308,49 +370,64 @@ export default function App() {
           onOpenSection={openSection}
         />
 
-        {/* Sections */}
-        {section === "memory" && (
-          <MemorySection
-            onClose={closeSection}
-            onSound={playSound}
-            language={language}
-          />
-        )}
-        {section === "settings" && (
-          <SettingsSection
-            onClose={closeSection}
-            onSound={playSound}
-            soundEnabled={soundEnabled}
-            onSoundToggle={setSoundEnabled}
-            language={language}
-            onLanguageChange={(l: "EN" | "RU" | "UK") => setLanguage(l)}
-          />
-        )}
-        {section === "reminder" && (
-          <ReminderSection onClose={closeSection} onSound={playSound} />
-        )}
-        {section === "plugins" && (
-          <PluginsSection
-            onClose={closeSection}
-            onSound={playSound}
-            onOpenWorldMap={() => setSection("worldmap")}
-          />
-        )}
-        {section === "worldmap" && (
-          <WorldMapSection onClose={closeSection} onSound={playSound} />
-        )}
-        {section === "commands" && (
-          <CommandsSection onClose={closeSection} onSound={playSound} />
-        )}
-        {section === "addcommands" && (
-          <AddCommandsSection onClose={closeSection} onSound={playSound} />
-        )}
-        {section === "people" && (
-          <PeopleSection onClose={closeSection} onSound={playSound} />
-        )}
-        {section === "kraken" && (
-          <KrakenSection onClose={closeSection} onSound={playSound} />
-        )}
+        {/* Sections Overlay */}
+        <AnimatePresence mode="wait">
+          {section && (
+            <motion.div
+              key={section}
+              className="motion-gpu"
+              initial={{ opacity: 0, scale: 0.98, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.98, y: -10 }}
+              transition={{ type: "spring", stiffness: 500, damping: 35, mass: 0.5 }}
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 400,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                pointerEvents: "auto",
+              }}
+            >
+              {section === "memory" && (
+                <MemorySection
+                  onClose={closeSection}
+                  onSound={playSound}
+                  language={language}
+                />
+              )}
+              {section === "settings" && (
+                <SettingsSection
+                  onClose={closeSection}
+                  onSound={playSound}
+                  soundEnabled={soundEnabled}
+                  onSoundToggle={setSoundEnabled}
+                  language={language}
+                  onLanguageChange={(l: "EN" | "RU" | "UK") => setLanguage(l)}
+                />
+              )}
+              {section === "reminder" && (
+                <ReminderSection onClose={closeSection} onSound={playSound} />
+              )}
+              {section === "plugins" && (
+                <PluginsSection
+                  onClose={closeSection}
+                  onSound={playSound}
+                />
+              )}
+              {section === "commands" && (
+                <CommandsSection onClose={closeSection} onSound={playSound} />
+              )}
+              {section === "addcommands" && (
+                <AddCommandsSection onClose={closeSection} onSound={playSound} />
+              )}
+              {section === "people" && (
+                <PeopleSection onClose={closeSection} onSound={playSound} />
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </I18nProvider>
   );

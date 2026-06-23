@@ -58,7 +58,7 @@ function CustomDropdown({
           padding: "10px 14px",
           color: "#10b981",
           fontSize: 13,
-          fontFamily: "'Courier New', monospace",
+          fontFamily: "'RexBold', sans-serif",
           textAlign: "left",
           cursor: "pointer",
           display: "flex",
@@ -109,7 +109,7 @@ function CustomDropdown({
                 border: "none",
                 color: value === opt.value ? "#10b981" : "rgba(255,255,255,0.7)",
                 fontSize: 12,
-                fontFamily: "'Courier New', monospace",
+                fontFamily: "'RexBold', sans-serif",
                 textAlign: "left",
                 cursor: "pointer",
               }}
@@ -190,7 +190,7 @@ export function AddCommandsSection({ onClose, onSound }: AddCommandsSectionProps
     padding: "10px 12px",
     color: "white",
     fontSize: 12,
-    fontFamily: "'Courier New', monospace",
+    fontFamily: "'RexBold', sans-serif",
     outline: "none",
     marginBottom: 12,
     transition: "border-color 0.2s",
@@ -247,7 +247,7 @@ export function AddCommandsSection({ onClose, onSound }: AddCommandsSectionProps
         <div style={{ padding: "28px 28px 12px", flexShrink: 0 }}>
           <h2
             style={{
-              fontFamily: "'Courier New', monospace",
+              fontFamily: "pdark",
               fontSize: 22,
               fontWeight: "bold",
               color: "#10b981",
@@ -264,7 +264,7 @@ export function AddCommandsSection({ onClose, onSound }: AddCommandsSectionProps
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: "0 28px 28px" }}>
-          <div style={{ marginBottom: 4, fontSize: 11, color: "rgba(16,185,129,0.7)", fontFamily: "'Courier New', monospace" }}>
+          <div style={{ marginBottom: 4, fontSize: 11, color: "rgba(16,185,129,0.7)", fontFamily: "'RexBold', sans-serif" }}>
             ТРИГЕРНЕ СЛОВО:
           </div>
           <input
@@ -275,7 +275,7 @@ export function AddCommandsSection({ onClose, onSound }: AddCommandsSectionProps
           />
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-            <div style={{ fontSize: 11, color: "rgba(16,185,129,0.7)", fontFamily: "'Courier New', monospace" }}>
+            <div style={{ fontSize: 11, color: "rgba(16,185,129,0.7)", fontFamily: "'RexBold', sans-serif" }}>
               КОД КОМАНДИ:
             </div>
             <button
@@ -287,7 +287,7 @@ export function AddCommandsSection({ onClose, onSound }: AddCommandsSectionProps
                 fontSize: 10,
                 textDecoration: "underline",
                 cursor: "pointer",
-                fontFamily: "'Courier New', monospace",
+                fontFamily: "'RexBold', sans-serif",
               }}
             >
               Завантажити файл
@@ -325,7 +325,7 @@ export function AddCommandsSection({ onClose, onSound }: AddCommandsSectionProps
               padding: "12px",
               color: trigger && code ? "#10b981" : "rgba(255,255,255,0.2)",
               fontSize: 13,
-              fontFamily: "'Courier New', monospace",
+              fontFamily: "'RexBold', sans-serif",
               fontWeight: "bold",
               cursor: trigger && code ? "pointer" : "not-allowed",
               transition: "all 0.2s",
@@ -342,7 +342,7 @@ export function AddCommandsSection({ onClose, onSound }: AddCommandsSectionProps
                   color: "rgba(255,255,255,0.3)",
                   letterSpacing: "0.15em",
                   marginBottom: 12,
-                  fontFamily: "'Courier New', monospace",
+                  fontFamily: "'RexBold', sans-serif",
                 }}
               >
                 СПИСОК ДОДАНИХ КОМАНД:
@@ -384,7 +384,7 @@ export function AddCommandsSection({ onClose, onSound }: AddCommandsSectionProps
                         fontSize: 13,
                         fontWeight: "bold",
                         color: "rgba(255,255,255,0.9)",
-                        fontFamily: "'Courier New', monospace",
+                        fontFamily: "'RexBold', sans-serif",
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -396,7 +396,7 @@ export function AddCommandsSection({ onClose, onSound }: AddCommandsSectionProps
                       style={{
                         fontSize: 10,
                         color: "rgba(255,255,255,0.4)",
-                        fontFamily: "'Courier New', monospace",
+                        fontFamily: "'RexBold', sans-serif",
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",

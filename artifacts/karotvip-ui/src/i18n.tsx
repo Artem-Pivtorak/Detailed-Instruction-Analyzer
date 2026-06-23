@@ -6,7 +6,7 @@ const translations: Record<Lang, Record<string, string>> = {
   EN: {
     appName: "M.A.R.T.I.N.",
     footer:
-      "Copyright © 2019-2026 M.A.R.T.I.N. Industries Inc. All rights reserved.",
+      "Copyright © 2019-2026 Karotvip Industries Inc. All rights reserved.",
     "module.memory": "MEMORY",
     "module.settings": "SETTINGS",
     "module.people": "PEOPLE",

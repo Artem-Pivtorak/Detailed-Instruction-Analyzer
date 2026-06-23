@@ -67,7 +67,7 @@ export function ReminderSection({ onClose, onSound }: ReminderSectionProps) {
 
         <div style={{ padding: "24px 28px 16px", textAlign: "center", flexShrink: 0 }}>
           <h2 style={{
-            fontFamily: "'Courier New', monospace", fontSize: 22, fontWeight: "bold",
+            fontFamily: "'RexBold', sans-serif",
             color: "#eab308", textShadow: "0 0 20px rgba(234,179,8,0.8)",
             letterSpacing: "0.2em",
           }}>{t("module.reminder")}</h2>
@@ -75,7 +75,7 @@ export function ReminderSection({ onClose, onSound }: ReminderSectionProps) {
 
         <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 20px" }}>
           {reminders.length === 0 && (
-            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", padding: 40, fontFamily: "'Courier New', monospace" }}>
+            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", padding: 40, fontFamily: "'RexBold', sans-serif" }}>
               {t("reminder.noReminders")}
             </div>
           )}
@@ -99,7 +99,7 @@ export function ReminderSection({ onClose, onSound }: ReminderSectionProps) {
                 <div style={{ flex: 1, paddingRight: 30 }}>
                   <div style={{
                     fontSize: 11, fontWeight: "bold", color: "#eab308",
-                    fontFamily: "'Courier New', monospace", marginBottom: 6,
+                    fontFamily: "'RexBold', sans-serif",
                     letterSpacing: "0.08em",
                   }}>
                     {t("reminder.time")}: {rem.time} {t("reminder.date")} {rem.date}

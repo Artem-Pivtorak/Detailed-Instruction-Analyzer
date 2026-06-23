@@ -473,7 +473,7 @@ export function EarthGlobe({
       if (!ready) {
         ctx.save();
         ctx.beginPath(); ctx.arc(cx,cy,sR,0,Math.PI*2); ctx.clip();
-        ctx.font=`${Math.round(size*0.037)}px 'Courier New',monospace`;
+        ctx.font=`${Math.round(size*0.037)}px RexBold,monospace`;
         ctx.fillStyle="rgba(0,210,255,0.70)"; ctx.textAlign="center"; ctx.textBaseline="middle";
         ctx.fillText("LOADING MAP DATA...",cx,cy);
         ctx.restore();
@@ -500,7 +500,7 @@ export function EarthGlobe({
           ctx.fillStyle=col; ctx.shadowColor=col; ctx.shadowBlur=dot*3.5;
           ctx.fill(); ctx.shadowBlur=0;
         }
-        ctx.font=`${fs}px 'Courier New',monospace`;
+        ctx.font=`${fs}px RexBold,monospace`;
         ctx.fillStyle=col; ctx.textAlign="center"; ctx.textBaseline="bottom";
         ctx.shadowColor="rgba(0,4,18,0.98)"; ctx.shadowBlur=6;
         ctx.fillText(name,px,py-dot-2);
@@ -522,7 +522,7 @@ export function EarthGlobe({
                   : flat>0.04?`◐  ${z.toFixed(1)}×`
                   : `${z.toFixed(1)}×`;
         ctx.save();
-        ctx.font="8px 'Courier New',monospace";
+        ctx.font="8px RexBold,monospace";
         ctx.fillStyle=`rgba(0,190,255,${Math.min(0.55,flat*0.8+0.22).toFixed(2)})`;
         ctx.textAlign="right"; ctx.textBaseline="bottom";
         ctx.fillText(hud,size-7,size-7);

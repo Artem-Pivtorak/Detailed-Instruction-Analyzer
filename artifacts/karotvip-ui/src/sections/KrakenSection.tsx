@@ -58,7 +58,7 @@ export function KrakenSection({ onClose, onSound }: KrakenSectionProps) {
       transition: "opacity 0.4s ease",
       overflow: "hidden",
       color: "white",
-      fontFamily: "'Courier New', monospace",
+      fontFamily: "'RexBold', sans-serif",
     }}>
       {/* Background Grid Decoration */}
       <div style={{

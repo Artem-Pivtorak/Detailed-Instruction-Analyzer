@@ -68,10 +68,10 @@ function PersonCard({ person, onChange, onDelete, onSound }: { person: Person; o
           <img src={peopleIcon} alt="avatar" style={{ width: "60%", height: "60%", objectFit: "contain" }} />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "'Courier New', monospace", fontWeight: "bold", color: "#fff", fontSize: 13 }}>
+          <div style={{ fontFamily: "'RexBold', sans-serif" }}>
             {person.name}
           </div>
-          <div style={{ fontSize: 10, color, fontFamily: "'Courier New', monospace", letterSpacing: "0.05em" }}>
+          <div style={{ fontSize: 10, color, fontFamily: "'RexBold', sans-serif" }}>
             {person.role}
           </div>
         </div>
@@ -115,7 +115,7 @@ function PersonCard({ person, onChange, onDelete, onSound }: { person: Person; o
             [t("people.audioPath"), person.audioPath, false, "audioPath"],
           ].map(([label, val, editable, key]) => (
             <div key={label as string} style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", width: 72, flexShrink: 0, fontFamily: "'Courier New', monospace", letterSpacing: "0.05em" }}>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", width: 72, flexShrink: 0, fontFamily: "'RexBold', sans-serif" }}>
                 {label}
               </span>
               {editable ? (
@@ -127,11 +127,13 @@ function PersonCard({ person, onChange, onDelete, onSound }: { person: Person; o
                     border: "1px solid rgba(34,197,94,0.2)",
                     borderRadius: 6, padding: "4px 8px",
                     color: "rgba(255,255,255,0.8)", fontSize: 11,
-                    fontFamily: "'Courier New', monospace", outline: "none",
+                    fontFamily: "'RexBold', sans-serif",
                   }}
                 />
               ) : (
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'Courier New', monospace" }}>{val}</span>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'RexBold', sans-serif" }}>
+                  {val}
+                </span>
               )}
             </div>
           ))}
@@ -141,7 +143,7 @@ function PersonCard({ person, onChange, onDelete, onSound }: { person: Person; o
             border: "1px solid rgba(34,197,94,0.4)",
             borderRadius: 8, padding: "6px 18px",
             color: "#22c55e",
-            fontSize: 11, fontFamily: "'Courier New', monospace",
+            fontSize: 11, fontFamily: "'RexBold', sans-serif",
             fontWeight: "bold", cursor: "pointer",
           }}
           onClick={() => onSound("click")}
@@ -209,7 +211,7 @@ export function PeopleSection({ onClose, onSound }: PeopleSectionProps) {
 
         <div style={{ padding: "24px 28px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
           <h2 style={{
-            fontFamily: "'Courier New', monospace", fontSize: 22, fontWeight: "bold",
+            fontFamily: "pdark",
             color: "#22c55e", textShadow: "0 0 20px rgba(34,197,94,0.8)",
             letterSpacing: "0.2em",
           }}>{t("module.people")}</h2>

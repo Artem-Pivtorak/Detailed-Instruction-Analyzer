@@ -16,24 +16,14 @@ const PLUGINS: Plugin[] = [
   { id: 2, name: "VIDEO EDIT",  color: "#3b82f6", icon: "🎬", enabled: true  },
   { id: 3, name: "CODE MASTER", color: "#22c55e", icon: "💻", enabled: false },
   { id: 4, name: "SCHOOL HELP", color: "#eab308", icon: "📚", enabled: true  },
-  {
-    id: 5,
-    name: "WORLD MAP",
-    color: "#00CFFF",
-    icon: "🌍",
-    enabled: false,
-    openable: true,
-    openLabel: "OPEN MAP",
-  },
 ];
 
 interface PluginsSectionProps {
   onClose: () => void;
   onSound: (type: string) => void;
-  onOpenWorldMap?: () => void;
 }
 
-export function PluginsSection({ onClose, onSound, onOpenWorldMap }: PluginsSectionProps) {
+export function PluginsSection({ onClose, onSound }: PluginsSectionProps) {
   const [visible, setVisible] = useState(false);
   const [plugins, setPlugins] = useState(PLUGINS);
   const [hovered, setHovered] = useState<number | null>(null);
@@ -50,12 +40,6 @@ export function PluginsSection({ onClose, onSound, onOpenWorldMap }: PluginsSect
   function togglePlugin(id: number) {
     onSound("toggle");
     setPlugins(p => p.map(pl => pl.id === id ? { ...pl, enabled: !pl.enabled } : pl));
-  }
-
-  function handleOpenWorldMap() {
-    onSound("open");
-    // Передаємо управління вгору — App відкриє WorldMapSection
-    onOpenWorldMap?.();
   }
 
   return (
@@ -89,12 +73,12 @@ export function PluginsSection({ onClose, onSound, onOpenWorldMap }: PluginsSect
         {/* Title */}
         <div style={{ padding: "24px 28px 14px", textAlign: "center", flexShrink: 0 }}>
           <h2 style={{
-            fontFamily: "'Courier New', monospace", fontSize: 22, fontWeight: "bold",
+            fontFamily: "'RexBold', sans-serif",
             color: "#3b82f6", textShadow: "0 0 20px rgba(59,130,246,0.8)",
             letterSpacing: "0.2em", margin: 0,
           }}>{t("module.plugins")}</h2>
           <div style={{
-            marginTop: 6, fontFamily: "'Courier New',monospace", fontSize: 9,
+            marginTop: 6, fontFamily: "'RexBold', sans-serif",
             color: "rgba(59,130,246,0.4)", letterSpacing: "0.12em",
           }}>SELECT · TOGGLE · LAUNCH</div>
         </div>
@@ -103,7 +87,6 @@ export function PluginsSection({ onClose, onSound, onOpenWorldMap }: PluginsSect
         <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 20px" }}>
           {plugins.map(plugin => {
             const isHov = hovered === plugin.id;
-            const isWorldMap = plugin.id === 5;
 
             return (
               <div
@@ -138,55 +121,15 @@ export function PluginsSection({ onClose, onSound, onOpenWorldMap }: PluginsSect
                 {/* Name + badge */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <span style={{
-                    fontFamily: "'Courier New', monospace", fontWeight: "bold",
+                    fontFamily: "'RexBold', sans-serif",
                     fontSize: 13, color: isHov ? plugin.color : "rgba(255,255,255,0.85)",
                     letterSpacing: "0.06em", transition: "color 0.2s",
                     textShadow: isHov ? `0 0 10px ${plugin.color}88` : "none",
                     display: "block",
                   }}>{plugin.name}</span>
-
-                  {isWorldMap && (
-                    <span style={{
-                      fontFamily: "'Courier New',monospace", fontSize: 8,
-                      color: `${plugin.color}88`, letterSpacing: "0.08em",
-                    }}>
-                      REAL-TIME · 6 REGIONS · 195 COUNTRIES
-                    </span>
-                  )}
                 </div>
 
-                {/* World Map: Open button */}
-                {isWorldMap && (
-                  <button
-                    onClick={handleOpenWorldMap}
-                    style={{
-                      padding: "6px 12px",
-                      background: isHov ? `${plugin.color}22` : `${plugin.color}0e`,
-                      border: `1px solid ${plugin.color}${isHov ? "88" : "44"}`,
-                      borderRadius: 7,
-                      color: plugin.color,
-                      cursor: "pointer",
-                      fontFamily: "'Courier New',monospace",
-                      fontSize: 9, fontWeight: "bold",
-                      letterSpacing: "0.1em",
-                      boxShadow: isHov ? `0 0 14px ${plugin.color}44` : "none",
-                      transition: "all 0.2s",
-                      flexShrink: 0,
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.background = `${plugin.color}33`;
-                      e.currentTarget.style.boxShadow = `0 0 18px ${plugin.color}66`;
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.background = isHov ? `${plugin.color}22` : `${plugin.color}0e`;
-                      e.currentTarget.style.boxShadow = isHov ? `0 0 14px ${plugin.color}44` : "none";
-                    }}
-                  >
-                    🌐 OPEN
-                  </button>
-                )}
-
-                {/* Toggle circle (for non-worldmap or also worldmap) */}
+                {/* Toggle circle */}
                 <div
                   onClick={() => togglePlugin(plugin.id)}
                   style={{
@@ -212,11 +155,11 @@ export function PluginsSection({ onClose, onSound, onOpenWorldMap }: PluginsSect
         <div style={{
           borderTop: "1px solid rgba(59,130,246,0.1)",
           padding: "8px 20px",
-          fontFamily: "'Courier New',monospace", fontSize: 8,
+          fontFamily: "'RexBold', sans-serif",
           color: "rgba(255,255,255,0.18)", letterSpacing: "0.08em",
           textAlign: "center", flexShrink: 0,
         }}>
-          ✓ = ACTIVE PLUGIN &nbsp;·&nbsp; 🌐 OPEN = LAUNCH SECTION
+          ✓ = ACTIVE PLUGIN
         </div>
       </div>
     </div>

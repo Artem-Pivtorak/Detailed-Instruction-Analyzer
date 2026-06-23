@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { LiquidGlass } from "./LiquidGlass";
 import memoryIcon from "../../../../images-icons/memory.png";
 import settingsIcon from "../../../../images-icons/settings.png";
 import peopleIcon from "../../../../images-icons/people.png";
@@ -14,8 +16,7 @@ type Section =
   | "plugins"
   | "commands"
   | "addcommands"
-  | "people"
-  | "kraken";
+  | "people";
 
 interface SidePanelProps {
   open: boolean;
@@ -33,12 +34,6 @@ const MODULES: { key: Section; name: string; color: string; icon: string }[] = [
     icon: settingsIcon,
   },
   { key: "people", name: "module.people", color: "#22c55e", icon: peopleIcon },
-  {
-    key: "kraken",
-    name: "K.R.A.K.E.N.",
-    color: "#ff0080",
-    icon: pluginsIcon,
-  },
   {
     key: "reminder",
     name: "module.reminder",
@@ -142,7 +137,7 @@ function PluginDropdown({
         onClick={toggle}
         style={{
           width: "100%",
-          minHeight: 46,
+          minHeight: 60,
           background: open ? `${plugin.color}18` : `${plugin.color}0a`,
           border: `1px solid ${open ? plugin.color + "55" : plugin.color + "28"}`,
           borderRadius: open ? "8px 8px 0 0" : 8,
@@ -151,11 +146,12 @@ function PluginDropdown({
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          gap: 4,
-          padding: "6px 4px",
-          transition: "all 0.20s ease",
+          gap: 6,
+          padding: "8px 6px",
+          transition: "background 0.15s, border-color 0.15s, border-radius 0.15s, box-shadow 0.15s",
           boxShadow: open ? `0 0 14px ${plugin.color}30` : "none",
           position: "relative",
+          fontFamily: "'RexBold', sans-serif",
         }}
         onMouseEnter={() => onSound("hover")}
       >
@@ -177,19 +173,19 @@ function PluginDropdown({
                 background: plugin.color,
                 borderRadius: 1,
                 opacity: open ? 1 : 0.75,
-                transition: "opacity 0.2s",
+                transition: "opacity 0.15s ease-out",
               }}
             />
           ))}
         </div>
         <span
           style={{
-            fontSize: 7.5,
+            fontSize: 11,
             color: open ? plugin.color : "rgba(255,255,255,0.80)",
-            letterSpacing: "0.01em",
-            fontFamily: "'Courier New', monospace",
+            letterSpacing: "0.02em",
+            fontFamily: "'RexBold', sans-serif",
             fontWeight: "bold",
-            transition: "color 0.2s",
+            transition: "color 0.15s ease-out",
             textAlign: "center",
             lineHeight: "1.2",
             wordBreak: "break-word",
@@ -207,108 +203,114 @@ function PluginDropdown({
             fontSize: 6,
             color: `${plugin.color}80`,
             transform: open ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 0.2s ease",
+            transition: "transform 0.2s ease-out",
           }}
         >
           ▾
         </span>
       </button>
 
-      <div
-        style={{
-          position: "absolute",
-          top: "100%",
-          left: alignRight ? "auto" : 0,
-          right: alignRight ? 0 : "auto",
-          minWidth: "100%",
-          width: fullWidth ? "100%" : "max-content",
-          background: "rgba(4, 12, 26, 0.99)",
-          border: `1px solid ${plugin.color}40`,
-          borderTop: "none",
-          borderRadius: alignRight ? "8px 0 8px 8px" : "0 8px 8px 8px",
-          overflow: "hidden",
-          maxHeight: open ? 250 : 0,
-          opacity: open ? 1 : 0,
-          transition:
-            "max-height 0.26s cubic-bezier(0.22,1,0.36,1), opacity 0.20s ease",
-          zIndex: 400,
-          boxShadow: open
-            ? `0 8px 24px rgba(0,0,0,0.8), 0 0 18px ${plugin.color}25`
-            : "none",
-          overflowY: "auto",
-        }}
-      >
-        {plugin.options.map((opt, i) => {
-          const isActive = opt === selected;
-          return (
-            <button
-              key={opt}
-              onClick={() => choose(opt)}
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                background: isActive ? `${plugin.color}18` : "transparent",
-                border: "none",
-                borderBottom:
-                  i < plugin.options.length - 1
-                    ? `1px solid ${plugin.color}15`
-                    : "none",
-                cursor: "pointer",
-                textAlign: "left",
-                color: isActive ? plugin.color : "rgba(255,255,255,0.70)",
-                fontSize: 9,
-                fontFamily: "'Courier New', monospace",
-                fontWeight: isActive ? "bold" : "normal",
-                letterSpacing: "0.04em",
-                transition: "background 0.15s, color 0.15s",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                whiteSpace: "nowrap",
-                lineHeight: "1.4",
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive) {
-                  e.currentTarget.style.background = `${plugin.color}12`;
-                  e.currentTarget.style.color = `${plugin.color}cc`;
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.color = "rgba(255,255,255,0.70)";
-                }
-              }}
-            >
-              <span
-                style={{
-                  width: 5,
-                  height: 5,
-                  borderRadius: "50%",
-                  background: isActive ? plugin.color : "rgba(255,255,255,0.2)",
-                  flexShrink: 0,
-                  boxShadow: isActive ? `0 0 6px ${plugin.color}` : "none",
-                  transition: "all 0.15s",
-                }}
-              />
-              {opt.toUpperCase()}
-            </button>
-          );
-        })}
-      </div>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 600, damping: 40, mass: 0.5 }}
+            style={{
+              position: "absolute",
+              top: "100%",
+              left: alignRight ? "auto" : 0,
+              right: alignRight ? 0 : "auto",
+              minWidth: fullWidth ? "100%" : "100%",
+              width: fullWidth ? "100%" : "max-content",
+              maxWidth: fullWidth ? "100%" : "280px",
+              background: "#000000",
+              border: `1px solid ${plugin.color}40`,
+              borderTop: "none",
+              borderRadius: alignRight ? "8px 0 8px 8px" : "0 8px 8px 8px",
+              overflow: "hidden",
+              zIndex: 400,
+              boxShadow: open
+                ? `0 8px 24px rgba(0,0,0,0.8), 0 0 18px ${plugin.color}25`
+                : "none",
+              overflowY: "auto",
+              maxHeight: 250,
+            }}
+          >
+            {plugin.options.map((opt, i) => {
+              const isActive = opt === selected;
+              return (
+                <button
+                  key={opt}
+                  onClick={() => choose(opt)}
+                  style={{
+                    width: "100%",
+                    padding: "16px 18px",
+                    background: isActive ? `${plugin.color}18` : "transparent",
+                    border: "none",
+                    borderBottom:
+                      i < plugin.options.length - 1
+                        ? `1px solid ${plugin.color}15`
+                        : "none",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    color: isActive ? plugin.color : "rgba(255,255,255,0.70)",
+                    fontSize: 13,
+                    fontFamily: "'RexBold', sans-serif",
+                    fontWeight: isActive ? "bold" : "normal",
+                    letterSpacing: "0.04em",
+                    transition: "background 0.1s, color 0.1s",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    whiteSpace: "nowrap",
+                    lineHeight: "1.4",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.background = `${plugin.color}12`;
+                      e.currentTarget.style.color = `${plugin.color}cc`;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.background = "transparent";
+                      e.currentTarget.style.color = "rgba(255,255,255,0.70)";
+                    }
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: "50%",
+                      background: isActive ? plugin.color : "rgba(255,255,255,0.2)",
+                      flexShrink: 0,
+                      boxShadow: isActive ? `0 0 6px ${plugin.color}` : "none",
+                      transition: "all 0.1s",
+                    }}
+                  />
+                  {opt.toUpperCase()}
+                </button>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
 import { useI18n } from "../i18n";
 
+// ... props ...
 export function SidePanel({
   open,
   onClose,
   onSound,
   onOpenSection,
 }: SidePanelProps) {
-  const [hovered, setHovered] = useState<string | null>(null);
   const { t } = useI18n();
 
   // Lifted plugin states
@@ -380,45 +382,68 @@ export function SidePanel({
   return (
     <>
       {/* Backdrop */}
-      {open && (
-        <div
-          onClick={() => {
-            onClose();
-            onSound("close");
-          }}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.45)",
-            zIndex: 200,
-            backdropFilter: "blur(3px)",
-          }}
-        />
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => {
+              onClose();
+              onSound("close");
+            }}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.45)",
+              zIndex: 200,
+              backdropFilter: "blur(3px)",
+            }}
+          />
+        )}
+      </AnimatePresence>
+
 
       {/* Panel */}
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: 280,
-          height: "100%",
-          background: "rgba(4, 12, 26, 0.96)",
-          backdropFilter: "blur(28px)",
-          borderRight: "1px solid rgba(0,180,255,0.18)",
-          zIndex: 300,
-          transform: open ? "translateX(0)" : "translateX(-100%)",
-          transition: "transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)",
-          display: "flex",
-          flexDirection: "column",
-          boxShadow: open ? "6px 0 50px rgba(0,80,220,0.25)" : "none",
-        }}
-      >
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ x: "-100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "-100%" }}
+            transition={{
+              type: "spring",
+              stiffness: 450,
+              damping: 35,
+              mass: 0.6,
+            }}
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: 450,
+              height: "100%",
+              zIndex: 300,
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "10px 0 60px rgba(0,0,0,0.8)",
+              overflow: "hidden",
+            }}
+          >
+            {/* WebGL liquid glass effect */}
+            <LiquidGlass
+              width={450}
+              height="100%"
+              style={{ position: "absolute", top: 0, left: 0, zIndex: 0, width: "100%", height: "100%" }}
+              borderRadius={0}
+            />
+            
+            {/* Content wrapper with higher z-index */}
+            <div style={{ position: "relative", zIndex: 3, display: "flex", flexDirection: "column", height: "100%" }}>
         {/* Header */}
         <div
           style={{
-            padding: "22px 18px 14px",
+            padding: "36px 32px 24px",
             borderBottom: "1px solid rgba(0,180,255,0.10)",
             display: "flex",
             alignItems: "center",
@@ -426,11 +451,11 @@ export function SidePanel({
             flexShrink: 0,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
             <div
               style={{
-                width: 8,
-                height: 8,
+                width: 16,
+                height: 16,
                 borderRadius: "50%",
                 background: "#00cfff",
                 boxShadow: "0 0 10px #00cfff, 0 0 20px #00cfff",
@@ -438,10 +463,10 @@ export function SidePanel({
             />
             <span
               style={{
-                fontFamily: "'Courier New', monospace",
-                fontSize: 15,
+                fontFamily: "pdark",
+                fontSize: 22,
                 fontWeight: "bold",
-                letterSpacing: "0.2em",
+                letterSpacing: "0.15em",
                 color: "#00cfff",
                 textShadow: "0 0 12px rgba(0,200,255,0.6)",
               }}
@@ -457,16 +482,16 @@ export function SidePanel({
             style={{
               background: "rgba(255,255,255,0.05)",
               border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 6,
+              borderRadius: 10,
               color: "rgba(255,255,255,0.4)",
               cursor: "pointer",
-              fontSize: 14,
-              width: 28,
-              height: 28,
+              fontSize: 22,
+              width: 44,
+              height: 44,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              transition: "all 0.2s",
+              transition: "color 0.15s ease-out, background 0.15s ease-out",
             }}
             onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
             onMouseLeave={(e) =>
@@ -480,11 +505,11 @@ export function SidePanel({
         {/* Plugin dropdowns area */}
         <div
           style={{
-            padding: "14px 14px 18px",
+            padding: "24px 28px 28px",
             display: "flex",
             flexDirection: "column",
-            gap: 10,
-            borderBottom: "1px solid rgba(0,180,255,0.08)",
+            gap: 16,
+            borderBottom: "1px solid rgba(120,120,120,0.15)",
             flexShrink: 0,
             position: "relative",
             zIndex: 350,
@@ -495,7 +520,7 @@ export function SidePanel({
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
-              gap: "8px 10px",
+              gap: "14px 16px",
             }}
           >
             {pluginsConfig.map((p, idx) => (
@@ -526,14 +551,14 @@ export function SidePanel({
         </div>
 
         {/* Module buttons */}
-        <div style={{ padding: "16px 14px", flex: 1, overflowY: "auto" }}>
+        <div style={{ padding: "28px 28px", flex: 1, overflowY: "auto", borderTop: "1px solid rgba(120,120,120,0.15)" }}>
           <p
             style={{
-              fontSize: 9,
+              fontSize: 14,
               color: "rgba(255,255,255,0.25)",
               letterSpacing: "0.14em",
-              marginBottom: 10,
-              fontFamily: "'Courier New', monospace",
+              marginBottom: 18,
+              fontFamily: "pdark",
               paddingLeft: 4,
             }}
           >
@@ -541,107 +566,103 @@ export function SidePanel({
           </p>
 
           {MODULES.map((item) => {
-            const isHov = hovered === item.key;
             return (
-              <button
+              <motion.button
                 key={item.key}
                 onClick={() => handleModuleClick(item.key)}
                 onMouseEnter={() => {
-                  setHovered(item.key);
                   onSound("hover");
                 }}
-                onMouseLeave={() => setHovered(null)}
+                whileHover="hover"
+                initial="initial"
+                whileTap={{ scale: 0.98 }}
+                variants={{
+                  initial: { 
+                    background: "transparent",
+                    borderLeftColor: "transparent" 
+                  },
+                  hover: { 
+                    x: 6,
+                    background: `${item.color}12`,
+                    borderLeftColor: item.color 
+                  }
+                }}
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 12,
+                  gap: 18,
                   width: "100%",
-                  padding: "11px 14px",
-                  borderRadius: 10,
-                  marginBottom: 6,
+                  padding: "16px 28px",
+                  borderRadius: 0,
+                  marginBottom: 0,
                   cursor: "pointer",
-                  background: isHov
-                    ? `${item.color}16`
-                    : "rgba(255,255,255,0.025)",
-                  border: `1px solid ${isHov ? item.color + "50" : "rgba(255,255,255,0.06)"}`,
-                  transition: "all 0.22s cubic-bezier(0.22,1,0.36,1)",
-                  boxShadow: isHov
-                    ? `0 0 18px ${item.color}25, inset 0 0 12px ${item.color}08`
-                    : "none",
-                  transform: isHov ? "translateX(3px)" : "translateX(0)",
+                  border: "none",
+                  borderLeft: `3px solid transparent`,
                   textAlign: "left",
+                  position: "relative",
                 }}
               >
-                <div
+                <motion.div
                   style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 8,
-                    background: `${item.color}18`,
-                    border: `1px solid ${item.color}40`,
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    background: `${item.color}15`,
+                    border: `1px solid ${item.color}30`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     flexShrink: 0,
-                    boxShadow: isHov ? `0 0 10px ${item.color}60` : "none",
-                    transition: "box-shadow 0.2s",
+                  }}
+                  variants={{
+                    initial: { scale: 1 },
+                    hover: { scale: 1.05 }
                   }}
                 >
                   <img
                     src={item.icon}
                     alt={item.name.toLowerCase()}
-                    style={{ width: 18, height: 18, objectFit: "contain" }}
+                    style={{ width: 26, height: 26, objectFit: "contain" }}
                   />
-                </div>
+                </motion.div>
 
-                <span
+                <motion.span
+                  variants={{
+                    initial: { color: "rgba(255,255,255,0.60)" },
+                    hover: { color: item.color }
+                  }}
                   style={{
-                    fontSize: 12,
-                    fontFamily: "'Courier New', monospace",
+                    fontSize: 15,
+                    fontFamily: "RexBold",
                     fontWeight: "bold",
-                    color: isHov ? item.color : "rgba(255,255,255,0.65)",
-                    letterSpacing: "0.07em",
-                    transition: "color 0.2s",
-                    textShadow: isHov ? `0 0 10px ${item.color}80` : "none",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase"
                   }}
                 >
                   {t(item.name)}
-                </span>
+                </motion.span>
 
-                <div
+                <motion.div
+                  variants={{
+                    initial: { color: "rgba(255,255,255,0.1)", x: 0 },
+                    hover: { color: item.color, x: 4 }
+                  }}
                   style={{
                     marginLeft: "auto",
-                    color: isHov ? item.color : "rgba(255,255,255,0.15)",
-                    fontSize: 10,
-                    transition: "all 0.2s",
-                    transform: isHov ? "translateX(2px)" : "translateX(0)",
+                    fontSize: 12,
                   }}
                 >
                   ▶
-                </div>
-              </button>
+                </motion.div>
+              </motion.button>
             );
           })}
         </div>
-
-        <div
-          style={{
-            padding: "12px 18px",
-            borderTop: "1px solid rgba(0,180,255,0.08)",
-            flexShrink: 0,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 9,
-              color: "rgba(255,255,255,0.18)",
-              fontFamily: "Arial, sans-serif",
-            }}
-          >
-            v2.0 — M.A.R.T.I.N. Industries Inc.
-          </span>
-        </div>
-      </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

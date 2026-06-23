@@ -1,4 +1,5 @@
 import { ReactNode, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface GlassButtonProps {
   icon: ReactNode;
@@ -14,7 +15,6 @@ const labelCycles: Record<string, string[]> = {
 };
 
 export function GlassButton({ icon, label, onClick, onHover }: GlassButtonProps) {
-  const [hovered, setHovered] = useState(false);
   const [cycleIdx, setCycleIdx] = useState(0);
 
   const labels = labelCycles[label] || [label];
@@ -26,43 +26,79 @@ export function GlassButton({ icon, label, onClick, onHover }: GlassButtonProps)
   }
 
   return (
-    <div
+    <motion.div
       onClick={handleClick}
-      onMouseEnter={() => { setHovered(true); onHover?.(); }}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={onHover}
+      whileHover="hover"
+      whileTap={{ scale: 0.96 }}
+      initial="initial"
+      variants={{
+        initial: {
+          scale: 1,
+          background: "rgba(255, 255, 255, 0.05)",
+          borderColor: "rgba(255, 255, 255, 0.10)",
+          boxShadow: "none",
+        },
+        hover: {
+          scale: 1.05,
+          background: "rgba(0, 180, 255, 0.15)",
+          borderColor: "rgba(0, 180, 255, 0.45)",
+          boxShadow: "0 0 16px rgba(0, 180, 255, 0.20)",
+        }
+      }}
       style={{
         width: 72,
         height: 72,
-        borderRadius: 12,
-        background: hovered
-          ? "rgba(0, 180, 255, 0.15)"
-          : "rgba(255, 255, 255, 0.06)",
-        border: `1px solid ${hovered ? "rgba(0,180,255,0.5)" : "rgba(255,255,255,0.12)"}`,
-        backdropFilter: "blur(16px)",
+        borderRadius: 14,
         cursor: "pointer",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: 4,
-        transition: "all 0.25s ease",
-        boxShadow: hovered ? "0 0 20px rgba(0,180,255,0.3)" : "none",
+        gap: 6,
         userSelect: "none",
+        position: "relative",
       }}
     >
-      <div style={{ color: hovered ? "#00cfff" : "rgba(255,255,255,0.7)", fontSize: 22, transition: "color 0.2s" }}>
+      {/* Invisible expanded hit area for even better precision */}
+      <div 
+        style={{ 
+          position: "absolute", 
+          inset: -6, 
+          borderRadius: "inherit",
+          zIndex: -1 
+        }} 
+      />
+
+      <motion.div 
+        variants={{
+          initial: { color: "rgba(255, 255, 255, 0.65)" },
+          hover: { color: "#00cfff" }
+        }}
+        transition={{ duration: 0.15 }}
+        style={{ 
+          fontSize: 24, 
+          display: "flex"
+        }}
+      >
         {icon}
-      </div>
-      <span style={{
-        color: hovered ? "#00cfff" : "rgba(255,255,255,0.5)",
-        fontSize: 10,
-        letterSpacing: "0.05em",
-        fontFamily: "'Courier New', monospace",
-        fontWeight: "bold",
-        transition: "color 0.2s",
-      }}>
+      </motion.div>
+      <motion.span 
+        variants={{
+          initial: { color: "rgba(255, 255, 255, 0.45)" },
+          hover: { color: "#00cfff" }
+        }}
+        transition={{ duration: 0.15 }}
+        style={{
+          fontSize: 10,
+          letterSpacing: "0.06em",
+          fontFamily: "'RexBold', sans-serif",
+          fontWeight: "bold",
+          textTransform: "uppercase",
+        }}
+      >
         {currentLabel}
-      </span>
-    </div>
+      </motion.span>
+    </motion.div>
   );
 }

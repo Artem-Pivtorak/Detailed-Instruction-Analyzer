@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 
 interface HexagonProps {
   label: string;
@@ -13,13 +14,24 @@ interface HexagonProps {
 export function Hexagon({ label, color, glowColor, size = 100, isNeighbor = false, onClick, onHover }: HexagonProps) {
   const [hovered, setHovered] = useState(false);
 
-  const scale = isNeighbor ? 0.92 : hovered ? 1.12 : 1.0;
+  // Perceived speed: scale transition should be instant but smooth
+  const scale = isNeighbor ? 0.92 : hovered ? 1.10 : 1.0;
 
   return (
-    <div
+    <motion.div
       onClick={onClick}
       onMouseEnter={() => { setHovered(true); onHover?.(); }}
       onMouseLeave={() => setHovered(false)}
+      whileHover={{ scale: isNeighbor ? 0.95 : 1.10 }}
+      whileTap={{ scale: 0.94 }}
+      animate={{ scale }}
+      transition={{ 
+        type: "spring", 
+        stiffness: 500, 
+        damping: 30, 
+        mass: 0.8,
+        duration: 0.2
+      }}
       style={{
         width: size,
         height: size,
@@ -28,15 +40,24 @@ export function Hexagon({ label, color, glowColor, size = 100, isNeighbor = fals
         border: "none",
         position: "relative",
         cursor: "pointer",
-        transform: `scale(${scale})`,
-        transition: "transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         flexDirection: "column",
         flexShrink: 0,
+        userSelect: "none",
       }}
     >
+      {/* Invisible expanded hit area for ergonomic precision */}
+      <div 
+        style={{ 
+          position: "absolute", 
+          inset: -4, 
+          clipPath: "inherit",
+          zIndex: -1 
+        }} 
+      />
+
       {/* SVG hex border with glow */}
       <svg
         style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
@@ -77,7 +98,7 @@ export function Hexagon({ label, color, glowColor, size = 100, isNeighbor = fals
           fontWeight: "bold",
           letterSpacing: "0.08em",
           textShadow: `0 0 10px ${glowColor}, 0 0 20px ${glowColor}88`,
-          fontFamily: "'Courier New', monospace",
+          fontFamily: "'RexBold', sans-serif",
           textTransform: "uppercase",
           zIndex: 1,
           userSelect: "none",
@@ -87,6 +108,6 @@ export function Hexagon({ label, color, glowColor, size = 100, isNeighbor = fals
       >
         {label}
       </span>
-    </div>
+    </motion.div>
   );
 }

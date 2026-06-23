@@ -131,7 +131,7 @@ export function MemorySection({
         {/* Title */}
         <h2
           style={{
-            fontFamily: "'Courier New', monospace",
+            fontFamily: "'RexBold', sans-serif",
             fontSize: 22,
             fontWeight: "bold",
             color: "#f97316",
@@ -184,7 +184,7 @@ export function MemorySection({
             >
               <div
                 style={{
-                  fontFamily: "'Courier New', monospace",
+                  fontFamily: "'RexBold', sans-serif",
                   fontSize: 11,
                   fontWeight: "bold",
                   color: block.color,
@@ -197,7 +197,7 @@ export function MemorySection({
               </div>
               <div
                 style={{
-                  fontFamily: "'Courier New', monospace",
+                  fontFamily: "'RexBold', sans-serif",
                   fontSize: 12,
                   color: "rgba(255,255,255,0.75)",
                   lineHeight: 1.5,
@@ -229,7 +229,7 @@ export function MemorySection({
               border: "1px solid rgba(239, 68, 68, 0.5)",
               borderRadius: 6,
               color: "#ef4444",
-              fontFamily: "'Courier New', monospace",
+              fontFamily: "'RexBold', sans-serif",
               fontSize: 11,
               fontWeight: "bold",
               cursor: "pointer",
@@ -258,7 +258,7 @@ export function MemorySection({
               border: "1px solid rgba(249,115,22,0.4)",
               borderRadius: 6,
               textAlign: "center",
-              fontFamily: "'Courier New', monospace",
+              fontFamily: "'RexBold', sans-serif",
               fontSize: 12,
               fontWeight: "bold",
               color: "#f97316",
@@ -280,7 +280,7 @@ export function MemorySection({
               border: "1px solid rgba(249,115,22,0.5)",
               borderRadius: 6,
               color: "#f97316",
-              fontFamily: "'Courier New', monospace",
+              fontFamily: "'RexBold', sans-serif",
               fontSize: 11,
               fontWeight: "bold",
               cursor: "pointer",

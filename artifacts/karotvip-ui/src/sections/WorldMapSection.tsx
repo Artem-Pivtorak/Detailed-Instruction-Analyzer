@@ -132,7 +132,7 @@ export function WorldMapSection({ onClose, onSound }: WorldMapSectionProps) {
   const now     = new Date();
   const timeStr = now.toLocaleTimeString("uk-UA", { hour12: false });
   const dateStr = now.toLocaleDateString("uk-UA");
-  const mono    = "'Courier New', monospace";
+  const mono    = "RexBold, monospace";
 
   // shared box style
   const box: CSSProperties = {
@@ -152,8 +152,9 @@ export function WorldMapSection({ onClose, onSound }: WorldMapSectionProps) {
         transition: "all 0.35s cubic-bezier(0.22,1,0.36,1)",
         display:    "flex", flexDirection: "column",
         overflow:   "hidden", position: "relative",
-        fontFamily: mono,
-      }}>
+        fontFamily: "'RexBold', sans-serif"
+      }}
+    >
 
         {/* ── dot-grid background ── */}
         <div style={{
@@ -177,7 +178,7 @@ export function WorldMapSection({ onClose, onSound }: WorldMapSectionProps) {
           position:"absolute", top:14, right:16, zIndex:30,
           background:"rgba(255,30,30,0.08)", border:"1px solid rgba(255,60,60,0.28)",
           borderRadius:4, color:"rgba(255,80,80,0.70)", cursor:"pointer",
-          fontSize:12, width:28, height:28, fontFamily:mono,
+          fontSize:12, width:28, height:28, fontFamily: "'RexBold', sans-serif",
           display:"flex", alignItems:"center", justifyContent:"center",
         }}
           onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,30,30,0.22)"; e.currentTarget.style.color = "#ff5555"; }}
@@ -404,8 +405,9 @@ export function WorldMapSection({ onClose, onSound }: WorldMapSectionProps) {
                   fontSize:7.5, letterSpacing:"0.16em", pointerEvents:"none",
                   color: globeFlat > 0.95 ? "rgba(0,255,136,0.55)" : "rgba(0,200,255,0.45)",
                   transition:"color 0.5s",
-                  fontFamily:"'Courier New',monospace",
-                }}>
+                  fontFamily: "'RexBold', sans-serif"
+                }}
+              >
                   {globeFlat > 0.95
                     ? `● FLAT MAP · ${globeZoom.toFixed(1)}×`
                     : `◐ MORPHING → FLAT · ${globeZoom.toFixed(1)}×`}

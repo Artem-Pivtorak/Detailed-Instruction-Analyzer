@@ -61,7 +61,7 @@ export function CommandsSection({ onClose, onSound }: CommandsSectionProps) {
 
         <div style={{ padding: "24px 28px 16px", textAlign: "center", flexShrink: 0 }}>
           <h2 style={{
-            fontFamily: "'Courier New', monospace", fontSize: 22, fontWeight: "bold",
+            fontFamily: "'RexBold', sans-serif",
             color: "#06b6d4", textShadow: "0 0 20px rgba(6,182,212,0.8)",
             letterSpacing: "0.2em",
           }}>{t("module.commands")}</h2>
@@ -82,7 +82,7 @@ export function CommandsSection({ onClose, onSound }: CommandsSectionProps) {
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
                   <p style={{
                     fontSize: 12, color: "rgba(255,255,255,0.75)", lineHeight: 1.6, margin: 0, flex: 1,
-                    fontFamily: "'Courier New', monospace",
+                    fontFamily: "'RexBold', sans-serif",
                   }}>
                     {isExpanded ? cmd.text : truncated}
                   </p>
@@ -97,7 +97,7 @@ export function CommandsSection({ onClose, onSound }: CommandsSectionProps) {
                       borderRadius: 6, color: "#06b6d4",
                       cursor: "pointer", fontSize: 11,
                       padding: "3px 8px",
-                      fontFamily: "'Courier New', monospace",
+                      fontFamily: "'RexBold', sans-serif",
                       flexShrink: 0,
                       transition: "all 0.2s",
                     }}
