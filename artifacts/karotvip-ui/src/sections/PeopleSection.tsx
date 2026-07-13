@@ -45,33 +45,33 @@ function PersonCard({ person, onChange, onDelete, onSound }: { person: Person; o
 
   return (
     <div style={{
-      background: person.isMain ? "rgba(34,197,94,0.08)" : "rgba(22,163,74,0.05)",
-      border: `1px solid ${person.isMain ? "rgba(34,197,94,0.3)" : "rgba(22,163,74,0.2)"}`,
+      background: person.isMain ? "#22c55e0a" : "#16a34a0a",
+      border: `1px solid ${person.isMain ? "#22c55e28" : "#16a34a28"}`,
       borderRadius: 12,
-      marginBottom: 12,
+      marginBottom: 16,
       overflow: "hidden",
       marginLeft: person.isMain ? 0 : 12,
       transition: "all 0.3s",
       boxShadow: person.isMain ? "0 0 20px rgba(34,197,94,0.15)" : "none",
     }}>
       {/* Header */}
-      <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 16 }}>
         <div style={{
-          width: 38, height: 38, borderRadius: "50%",
+          width: 48, height: 48, borderRadius: "50%",
           background: `${color}22`,
           border: `2px solid ${color}66`,
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 16, flexShrink: 0,
+          fontSize: 20, flexShrink: 0,
           boxShadow: `0 0 12px ${color}44`,
           overflow: "hidden",
         }}>
           <img src={peopleIcon} alt="avatar" style={{ width: "60%", height: "60%", objectFit: "contain" }} />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "'RexBold', sans-serif" }}>
+          <div style={{ fontFamily: "'RexBold', sans-serif", fontSize: 18 }}>
             {person.name}
           </div>
-          <div style={{ fontSize: 10, color, fontFamily: "'RexBold', sans-serif" }}>
+          <div style={{ fontSize: 14, color, fontFamily: "'RexBold', sans-serif" }}>
             {person.role}
           </div>
         </div>
@@ -82,28 +82,40 @@ function PersonCard({ person, onChange, onDelete, onSound }: { person: Person; o
             onClick={() => onDelete(person.id)}
             style={{
               background: "none", border: "none", color: "rgba(255,80,80,0.5)",
-              cursor: "pointer", fontSize: 15, transition: "color 0.2s",
-              padding: "4px", display: "flex", alignItems: "center", justifyContent: "center"
+              cursor: "pointer", fontSize: 20, transition: "color 0.2s",
+              padding: "6px", display: "flex", alignItems: "center", justifyContent: "center"
             }}
             onMouseEnter={e => (e.currentTarget.style.color = "#f87171")}
             onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,80,80,0.5)")}
             title={t("common.delete")}
-          >🗑</button>
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              <line x1="10" y1="11" x2="10" y2="17"></line>
+              <line x1="14" y1="11" x2="14" y2="17"></line>
+            </svg>
+          </button>
         )}
 
         <button
           onClick={toggleExpand}
           style={{
             background: "none", border: "none", color,
-            cursor: "pointer", fontSize: 16, transition: "transform 0.3s",
+            cursor: "pointer", transition: "transform 0.3s",
             transform: person.expanded ? "rotate(90deg)" : "rotate(0deg)",
+            display: "flex", alignItems: "center", justifyContent: "center",
           }}
-        >▶</button>
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
       </div>
 
       {/* Expanded fields */}
       {person.expanded && (
-        <div style={{ padding: "0 16px 14px", borderTop: "1px solid rgba(34,197,94,0.1)" }}>
+        <div style={{ padding: "0 20px 18px", borderTop: "1px solid rgba(34,197,94,0.1)" }}>
           {[
             [t("people.id"), String(person.id), false, "id"],
             [t("people.name"), person.name, true, "name"],
@@ -112,10 +124,10 @@ function PersonCard({ person, onChange, onDelete, onSound }: { person: Person; o
             [t("people.country"), person.country, true, "country"],
             [t("people.city"), person.city, true, "city"],
             [t("people.gender"), person.gender, true, "gender"],
-            [t("people.audioPath"), person.audioPath, false, "audioPath"],
+            [t("people.audioPath"), person.audioPath, true, "audioPath"],
           ].map(([label, val, editable, key]) => (
-            <div key={label as string} style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", width: 72, flexShrink: 0, fontFamily: "'RexBold', sans-serif" }}>
+            <div key={label as string} style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12 }}>
+              <span style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", width: 90, flexShrink: 0, fontFamily: "'RexBold', sans-serif" }}>
                 {label}
               </span>
               {editable ? (
@@ -123,27 +135,27 @@ function PersonCard({ person, onChange, onDelete, onSound }: { person: Person; o
                   value={val as string}
                   onChange={e => onChange({ ...person, [key as string]: e.target.value })}
                   style={{
-                    flex: 1, background: "rgba(34,197,94,0.06)",
-                    border: "1px solid rgba(34,197,94,0.2)",
-                    borderRadius: 6, padding: "4px 8px",
-                    color: "rgba(255,255,255,0.8)", fontSize: 11,
+                    flex: 1, background: "#22c55e0a",
+                    border: "1px solid #22c55e28",
+                    borderRadius: 6, padding: "8px 12px",
+                    color: "rgba(255,255,255,0.8)", fontSize: 16,
                     fontFamily: "'RexBold', sans-serif",
                   }}
                 />
               ) : (
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: "'RexBold', sans-serif" }}>
+                <span style={{ fontSize: 16, color: "rgba(255,255,255,0.5)", fontFamily: "'RexBold', sans-serif" }}>
                   {val}
                 </span>
               )}
             </div>
           ))}
           <button style={{
-            marginTop: 12,
-            background: "rgba(34,197,94,0.15)",
-            border: "1px solid rgba(34,197,94,0.4)",
-            borderRadius: 8, padding: "6px 18px",
+            marginTop: 16,
+            background: "#22c55e0a",
+            border: "1px solid #22c55e28",
+            borderRadius: 8, padding: "10px 24px",
             color: "#22c55e",
-            fontSize: 11, fontFamily: "'RexBold', sans-serif",
+            fontSize: 16, fontFamily: "'RexBold', sans-serif",
             fontWeight: "bold", cursor: "pointer",
           }}
           onClick={() => onSound("click")}
@@ -186,16 +198,18 @@ export function PeopleSection({ onClose, onSound }: PeopleSectionProps) {
     <div style={{
       position: "fixed", inset: 0, zIndex: 100,
       display: "flex", alignItems: "center", justifyContent: "center",
-      background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+      background: "rgba(0,0,0,0.75)", backdropFilter: "blur(48px) saturate(150%)",
+      WebkitBackdropFilter: "blur(48px) saturate(150%)",
     }}>
-      <div style={{
-        width: 380,
-        background: "rgba(5,12,20,0.94)",
-        border: "1px solid rgba(34,197,94,0.3)",
-        borderRadius: 16,
+      <div
+        className="droplet-up"
+        style={{
+        width: 580,
+        background: "#000000",
+        border: "2px solid rgba(34,197,94,0.4)",
+        borderRadius: 24,
         position: "relative",
-        boxShadow: "0 0 60px rgba(34,197,94,0.2), 0 0 120px rgba(34,197,94,0.08)",
-        backdropFilter: "blur(24px)",
+        boxShadow: "0 0 80px rgba(34,197,94,0.3), 0 0 160px rgba(34,197,94,0.15)",
         transform: visible ? "scale(1) translateY(0)" : "scale(0.9) translateY(20px)",
         opacity: visible ? 1 : 0,
         transition: "all 0.35s cubic-bezier(0.22,1,0.36,1)",
@@ -204,32 +218,32 @@ export function PeopleSection({ onClose, onSound }: PeopleSectionProps) {
         flexDirection: "column",
       }}>
         <button onClick={handleClose} style={{
-          position: "absolute", top: 12, right: 16,
+          position: "absolute", top: 20, right: 12,
           background: "none", border: "none", color: "rgba(255,255,255,0.5)",
-          cursor: "pointer", fontSize: 18, zIndex: 2,
+          cursor: "pointer", fontSize: 28, zIndex: 10, lineHeight: 1,
         }}>✕</button>
 
-        <div style={{ padding: "24px 28px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+        <div style={{ padding: "40px 40px 28px", display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
           <h2 style={{
-            fontFamily: "pdark",
+            fontFamily: "'pdark', sans-serif",
+            fontSize: 32,
             color: "#22c55e", textShadow: "0 0 20px rgba(34,197,94,0.8)",
             letterSpacing: "0.2em",
           }}>{t("module.people")}</h2>
           <button
             onClick={addPerson}
             style={{
-              width: 32, height: 32, borderRadius: "50%",
-              background: "rgba(34,197,94,0.15)",
-              border: "1px solid rgba(34,197,94,0.4)",
-              color: "#22c55e", fontSize: 20, cursor: "pointer",
+              width: 44, height: 44, borderRadius: "50%",
+              background: "#22c55e0a",
+              border: "1px solid #22c55e28",
+              color: "#22c55e", fontSize: 24, cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center",
               lineHeight: 1,
-              paddingBottom: 3, // nudge plus up
             }}
           >+</button>
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 20px" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 40px 40px" }}>
           {people.map(p => (
             <PersonCard
               key={p.id}

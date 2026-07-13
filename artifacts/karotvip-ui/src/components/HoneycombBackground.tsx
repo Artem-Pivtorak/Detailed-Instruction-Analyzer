@@ -20,7 +20,7 @@ export function HoneycombBackground({
 
     let width = 0;
     let height = 0;
-    const hexSize = 30;
+    const hexSize = 48;
     const hexWidth = hexSize * Math.sqrt(3);
     const hexHeight = hexSize * 2;
     const columns = 0;

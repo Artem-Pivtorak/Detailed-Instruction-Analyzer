@@ -85,27 +85,28 @@ export function MemorySection({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(0,0,0,0.6)",
-        backdropFilter: "blur(4px)",
+        background: "rgba(0,0,0,0.75)",
+        backdropFilter: "blur(48px) saturate(150%)",
+        WebkitBackdropFilter: "blur(48px) saturate(150%)", // Strong blur for the background
       }}
     >
       <div
+        className="droplet-up"
         style={{
-          width: 420,
-          background: "rgba(5,12,25,0.92)",
-          border: "1px solid rgba(249,115,22,0.3)",
-          borderRadius: 16,
-          padding: 28,
+          width: 580,
+          background: "#000000",
+          border: "none",
+          borderRadius: 24,
+          padding: 40,
           position: "relative",
           boxShadow:
-            "0 0 60px rgba(249,115,22,0.25), 0 0 120px rgba(249,115,22,0.1)",
-          backdropFilter: "blur(24px)",
+            "0 0 80px rgba(249,115,22,0.3), 0 0 160px rgba(249,115,22,0.15)",
           transform: visible
             ? "scale(1) translateY(0)"
             : "scale(0.9) translateY(20px)",
           opacity: visible ? 1 : 0,
           transition: "all 0.35s cubic-bezier(0.22,1,0.36,1)",
-          maxHeight: "70vh",
+          maxHeight: "80vh",
           display: "flex",
           flexDirection: "column",
         }}
@@ -115,13 +116,13 @@ export function MemorySection({
           onClick={handleClose}
           style={{
             position: "absolute",
-            top: 12,
-            right: 16,
+            top: 20,
+            right: 12,
             background: "none",
             border: "none",
             color: "rgba(255,255,255,0.5)",
             cursor: "pointer",
-            fontSize: 18,
+            fontSize: 28,
             lineHeight: 1,
           }}
         >
@@ -131,13 +132,13 @@ export function MemorySection({
         {/* Title */}
         <h2
           style={{
-            fontFamily: "'RexBold', sans-serif",
-            fontSize: 22,
+            fontFamily: "'pdark', sans-serif",
+            fontSize: 32, // Increased title size
             fontWeight: "bold",
             color: "#f97316",
             textShadow: "0 0 20px rgba(249,115,22,0.8)",
             letterSpacing: "0.2em",
-            marginBottom: 20,
+            marginBottom: 28,
             textAlign: "center",
           }}
         >
@@ -185,12 +186,12 @@ export function MemorySection({
               <div
                 style={{
                   fontFamily: "'RexBold', sans-serif",
-                  fontSize: 11,
+                  fontSize: 16, // Increased speaker size
                   fontWeight: "bold",
                   color: block.color,
-                  textShadow: `0 0 8px ${block.color}80`,
-                  marginBottom: 4,
-                  letterSpacing: "0.05em",
+                  textShadow: `0 0 12px ${block.color}80`,
+                  marginBottom: 8,
+                  letterSpacing: "0.08em",
                 }}
               >
                 {block.speaker}
@@ -198,9 +199,9 @@ export function MemorySection({
               <div
                 style={{
                   fontFamily: "'RexBold', sans-serif",
-                  fontSize: 12,
-                  color: "rgba(255,255,255,0.75)",
-                  lineHeight: 1.5,
+                  fontSize: 18, // Increased text size
+                  color: "rgba(255,255,255,0.85)",
+                  lineHeight: 1.6,
                 }}
               >
                 {block.text}
@@ -224,13 +225,13 @@ export function MemorySection({
             onMouseEnter={() => onSound("hover")}
             style={{
               flex: 1,
-              padding: "10px 12px",
+              padding: "16px 20px",
               background: "rgba(239, 68, 68, 0.2)",
-              border: "1px solid rgba(239, 68, 68, 0.5)",
-              borderRadius: 6,
+              border: "2px solid rgba(239, 68, 68, 0.5)",
+              borderRadius: 10,
               color: "#ef4444",
               fontFamily: "'RexBold', sans-serif",
-              fontSize: 11,
+              fontSize: 16, // Increased font
               fontWeight: "bold",
               cursor: "pointer",
               letterSpacing: "0.08em",
@@ -253,17 +254,17 @@ export function MemorySection({
           <div
             style={{
               flex: 1,
-              padding: "10px 12px",
+              padding: "16px 20px",
               background: "rgba(249,115,22,0.12)",
-              border: "1px solid rgba(249,115,22,0.4)",
-              borderRadius: 6,
+              border: "2px solid rgba(249,115,22,0.4)",
+              borderRadius: 10,
               textAlign: "center",
               fontFamily: "'RexBold', sans-serif",
-              fontSize: 12,
+              fontSize: 16, // Increased font
               fontWeight: "bold",
               color: "#f97316",
-              textShadow: "0 0 8px rgba(249,115,22,0.6)",
-              letterSpacing: "0.05em",
+              textShadow: "0 0 12px rgba(249,115,22,0.6)",
+              letterSpacing: "0.08em",
             }}
           >
             {memoryFull}% {t("memory.full")}
@@ -275,13 +276,13 @@ export function MemorySection({
             onMouseEnter={() => onSound("hover")}
             style={{
               flex: 1,
-              padding: "10px 12px",
+              padding: "16px 20px",
               background: "rgba(249,115,22,0.2)",
-              border: "1px solid rgba(249,115,22,0.5)",
-              borderRadius: 6,
+              border: "2px solid rgba(249,115,22,0.5)",
+              borderRadius: 10,
               color: "#f97316",
               fontFamily: "'RexBold', sans-serif",
-              fontSize: 11,
+              fontSize: 16, // Increased font
               fontWeight: "bold",
               cursor: "pointer",
               letterSpacing: "0.08em",

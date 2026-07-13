@@ -29,8 +29,8 @@ function CustomDropdown({
   const { t } = useI18n();
 
   const options = [
-    { label: "Виконання AHK", value: "ahk" as Mode },
-    { label: "Виконання Python коду", value: "python" as Mode },
+    { label: t("addCommands.ahkExecution"), value: "ahk" as Mode },
+    { label: t("addCommands.pythonExecution"), value: "python" as Mode },
   ];
 
   useEffect(() => {
@@ -52,30 +52,31 @@ function CustomDropdown({
         }}
         style={{
           width: "100%",
-          background: "rgba(16,185,129,0.08)",
-          border: "1px solid rgba(16,185,129,0.3)",
-          borderRadius: 8,
-          padding: "10px 14px",
+          background: "linear-gradient(135deg, rgba(10, 10, 20, 0.4) 0%, rgba(30, 30, 50, 0.1) 100%)",
+          border: "2px solid rgba(16,185,129,0.9)",
+          borderRadius: 20,
+          padding: "12px 16px",
           color: "#10b981",
-          fontSize: 13,
+          fontSize: 16,
           fontFamily: "'RexBold', sans-serif",
           textAlign: "left",
           cursor: "pointer",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
+          boxShadow: "0 0 10px rgba(16,185,129,0.7), inset 0 0 5px rgba(16,185,129,0.4)",
+          transition: "all 0.2s",
         }}
       >
         <span>{selectedOption?.label}</span>
-        <span
-          style={{
-            transform: open ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 0.2s",
-            fontSize: 10,
-          }}
-        >
-          ▾
-        </span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{
+          transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          transition: "transform 0.3s",
+        }}>
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
       </button>
 
       {open && (
@@ -86,14 +87,24 @@ function CustomDropdown({
             left: 0,
             right: 0,
             marginTop: 4,
-            background: "rgba(5,20,15,0.98)",
-            border: "1px solid rgba(16,185,129,0.4)",
-            borderRadius: 8,
+            background: "linear-gradient(135deg, rgba(10, 10, 20, 0.4) 0%, rgba(30, 30, 50, 0.1) 100%)",
+            border: "2px solid rgba(16,185,129,0.9)",
+            borderRadius: 20,
             overflow: "hidden",
             zIndex: 10,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+            boxShadow: "0 0 10px rgba(16,185,129,0.7), inset 0 0 5px rgba(16,185,129,0.4)",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
           }}
+          className="dropdown-menu"
         >
+        <style>{`
+          .dropdown-menu::-webkit-scrollbar {
+            display: none;
+          }
+        `}</style>
           {options.map((opt) => (
             <button
               key={opt.value}
@@ -104,14 +115,15 @@ function CustomDropdown({
               }}
               style={{
                 width: "100%",
-                padding: "10px 14px",
-                background: value === opt.value ? "rgba(16,185,129,0.15)" : "transparent",
+                padding: "12px 16px",
+                background: value === opt.value ? "rgba(16,185,129,0.2)" : "transparent",
                 border: "none",
                 color: value === opt.value ? "#10b981" : "rgba(255,255,255,0.7)",
-                fontSize: 12,
+                fontSize: 16,
                 fontFamily: "'RexBold', sans-serif",
                 textAlign: "left",
                 cursor: "pointer",
+                transition: "all 0.2s",
               }}
               onMouseEnter={(e) => {
                 if (value !== opt.value) e.currentTarget.style.background = "rgba(16,185,129,0.05)";
@@ -184,16 +196,19 @@ export function AddCommandsSection({ onClose, onSound }: AddCommandsSectionProps
 
   const inputStyle = {
     width: "100%",
-    background: "rgba(16,185,129,0.06)",
-    border: "1px solid rgba(16,185,129,0.25)",
-    borderRadius: 8,
-    padding: "10px 12px",
+    background: "linear-gradient(135deg, rgba(10, 10, 20, 0.4) 0%, rgba(30, 30, 50, 0.1) 100%)",
+    border: "2px solid rgba(16,185,129,0.9)",
+    borderRadius: 20,
+    padding: "12px 16px",
     color: "white",
-    fontSize: 12,
+    fontSize: 16,
     fontFamily: "'RexBold', sans-serif",
     outline: "none",
-    marginBottom: 12,
-    transition: "border-color 0.2s",
+    marginBottom: 16,
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
+    boxShadow: "0 0 10px rgba(16,185,129,0.7), inset 0 0 5px rgba(16,185,129,0.4)",
+    transition: "all 0.2s",
   };
 
   return (
@@ -205,19 +220,20 @@ export function AddCommandsSection({ onClose, onSound }: AddCommandsSectionProps
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(0,0,0,0.6)",
-        backdropFilter: "blur(4px)",
+        background: "rgba(0,0,0,0.75)",
+        backdropFilter: "blur(48px) saturate(150%)",
+        WebkitBackdropFilter: "blur(48px) saturate(150%)",
       }}
     >
       <div
+        className="droplet-up"
         style={{
-          width: 420,
-          background: "rgba(5,12,20,0.96)",
-          border: "1px solid rgba(16,185,129,0.3)",
-          borderRadius: 16,
+          width: 580,
+          background: "#000000",
+          border: "2px solid rgba(16,185,129,0.4)",
+          borderRadius: 24,
           position: "relative",
-          boxShadow: "0 0 60px rgba(16,185,129,0.25)",
-          backdropFilter: "blur(24px)",
+          boxShadow: "0 0 80px rgba(16,185,129,0.3), 0 0 160px rgba(16,185,129,0.15)",
           transform: visible ? "scale(1) translateY(0)" : "scale(0.9) translateY(20px)",
           opacity: visible ? 1 : 0,
           transition: "all 0.35s cubic-bezier(0.22,1,0.36,1)",
@@ -231,28 +247,29 @@ export function AddCommandsSection({ onClose, onSound }: AddCommandsSectionProps
           onClick={handleClose}
           style={{
             position: "absolute",
-            top: 12,
-            right: 16,
+            top: 20,
+            right: 12,
             background: "none",
             border: "none",
-            color: "rgba(255,255,255,0.4)",
+            color: "rgba(255,255,255,0.5)",
             cursor: "pointer",
-            fontSize: 18,
-            zIndex: 2,
+            fontSize: 28,
+            zIndex: 10,
+            lineHeight: 1,
           }}
         >
           ✕
         </button>
 
-        <div style={{ padding: "28px 28px 12px", flexShrink: 0 }}>
+        <div style={{ padding: "40px 40px 28px", flexShrink: 0 }}>
           <h2
             style={{
-              fontFamily: "pdark",
-              fontSize: 22,
+              fontFamily: "'pdark', sans-serif",
+              fontSize: 32,
               fontWeight: "bold",
               color: "#10b981",
               textShadow: "0 0 20px rgba(16,185,129,0.8)",
-              letterSpacing: "0.1em",
+              letterSpacing: "0.2em",
               marginBottom: 20,
               textAlign: "center",
             }}
@@ -263,20 +280,25 @@ export function AddCommandsSection({ onClose, onSound }: AddCommandsSectionProps
           <CustomDropdown value={mode} onChange={setMode} onSound={onSound} />
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "0 28px 28px" }}>
-          <div style={{ marginBottom: 4, fontSize: 11, color: "rgba(16,185,129,0.7)", fontFamily: "'RexBold', sans-serif" }}>
-            ТРИГЕРНЕ СЛОВО:
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 40px 40px", scrollbarWidth: "none", msOverflowStyle: "none" }}>
+        <style>{`
+          .addcommands-scroll-container::-webkit-scrollbar {
+            display: none;
+          }
+        `}</style>
+          <div style={{ marginBottom: 8, fontSize: 14, color: "rgba(16,185,129,0.7)", fontFamily: "'RexBold', sans-serif" }}>
+            {t("addCommands.triggerWord")}
           </div>
           <input
             value={trigger}
             onChange={(e) => setTrigger(e.target.value)}
-            placeholder="Наприклад: відкрити браузер..."
+            placeholder={t("addCommands.triggerPlaceholder")}
             style={{ ...inputStyle, borderColor: "rgba(16,185,129,0.4)" }}
           />
 
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-            <div style={{ fontSize: 11, color: "rgba(16,185,129,0.7)", fontFamily: "'RexBold', sans-serif" }}>
-              КОД КОМАНДИ:
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div style={{ fontSize: 14, color: "rgba(16,185,129,0.7)", fontFamily: "'RexBold', sans-serif" }}>
+              {t("addCommands.commandCode")}
             </div>
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -284,13 +306,13 @@ export function AddCommandsSection({ onClose, onSound }: AddCommandsSectionProps
                 background: "none",
                 border: "none",
                 color: "#10b981",
-                fontSize: 10,
-                textDecoration: "underline",
+                fontSize: 14,
+                textDecoration: "none",
                 cursor: "pointer",
                 fontFamily: "'RexBold', sans-serif",
               }}
             >
-              Завантажити файл
+              {t("addCommands.uploadFile")}
             </button>
             <input
               type="file"
@@ -304,34 +326,48 @@ export function AddCommandsSection({ onClose, onSound }: AddCommandsSectionProps
           <textarea
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            placeholder={`Вставте ${mode === "ahk" ? "AHK" : "Python"} код сюди...`}
+            placeholder={mode === "ahk" ? t("addCommands.insertAhkCode") : t("addCommands.insertPythonCode")}
             style={{
               ...inputStyle,
-              height: 120,
+              height: 150,
               resize: "none",
-              marginBottom: 16,
-              background: "rgba(16,185,129,0.03)",
+              marginBottom: 20,
             }}
           />
 
           <button
             onClick={addCommand}
             disabled={!trigger || !code}
+            onMouseDown={(e) => {
+              if (trigger && code) (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.98)";
+            }}
+            onMouseUp={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
+            }}
+            onMouseEnter={(e) => {
+              if (trigger && code) (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 15px rgba(16,185,129,0.9), inset 0 0 8px rgba(16,185,129,0.5)";
+            }}
+            onMouseLeave={(e) => {
+              if (trigger && code) (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 10px rgba(16,185,129,0.7), inset 0 0 5px rgba(16,185,129,0.4)";
+            }}
             style={{
               width: "100%",
-              background: trigger && code ? "rgba(16,185,129,0.18)" : "rgba(255,255,255,0.05)",
-              border: `1px solid ${trigger && code ? "rgba(16,185,129,0.5)" : "rgba(255,255,255,0.1)"}`,
-              borderRadius: 8,
-              padding: "12px",
-              color: trigger && code ? "#10b981" : "rgba(255,255,255,0.2)",
-              fontSize: 13,
+              background: trigger && code ? "linear-gradient(135deg, rgba(10, 10, 20, 0.4) 0%, rgba(30, 30, 50, 0.1) 100%)" : "rgba(255,255,255,0.05)",
+              border: `2px solid ${trigger && code ? "rgba(16,185,129,0.9)" : "rgba(255,255,255,0.3)"}`,
+              borderRadius: 20,
+              padding: "14px 16px",
+              color: trigger && code ? "#10b981" : "rgba(255,255,255,0.3)",
+              fontSize: 16,
               fontFamily: "'RexBold', sans-serif",
               fontWeight: "bold",
               cursor: trigger && code ? "pointer" : "not-allowed",
+              backdropFilter: trigger && code ? "blur(10px)" : "none",
+              WebkitBackdropFilter: trigger && code ? "blur(10px)" : "none",
+              boxShadow: trigger && code ? "0 0 10px rgba(16,185,129,0.7), inset 0 0 5px rgba(16,185,129,0.4)" : "none",
               transition: "all 0.2s",
             }}
           >
-            ДОДАТИ КОМАНДУ
+            {t("addCommands.addCommand")}
           </button>
 
           {commands.length > 0 && (
@@ -345,7 +381,7 @@ export function AddCommandsSection({ onClose, onSound }: AddCommandsSectionProps
                   fontFamily: "'RexBold', sans-serif",
                 }}
               >
-                СПИСОК ДОДАНИХ КОМАНД:
+                {t("addCommands.addedCommandsList")}
               </p>
               {commands.map((cmd) => (
                 <div
@@ -353,27 +389,34 @@ export function AddCommandsSection({ onClose, onSound }: AddCommandsSectionProps
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 12,
-                    background: "rgba(16,185,129,0.04)",
-                    border: "1px solid rgba(16,185,129,0.15)",
-                    borderRadius: 10,
-                    padding: "10px 14px",
-                    marginBottom: 10,
+                    gap: 16,
+                    background: "linear-gradient(135deg, rgba(10, 10, 20, 0.4) 0%, rgba(30, 30, 50, 0.1) 100%)",
+                    border: "2px solid rgba(16,185,129,0.6)",
+                    borderRadius: 20,
+                    padding: "16px 20px",
+                    marginBottom: 16,
+                    backdropFilter: "blur(10px)",
+                    WebkitBackdropFilter: "blur(10px)",
+                    boxShadow: "0 0 10px rgba(16,185,129,0.5), inset 0 0 5px rgba(16,185,129,0.3)",
                   }}
                 >
                   <div
                     style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 6,
-                      background: "rgba(16,185,129,0.1)",
+                      width: 48,
+                      height: 48,
+                      borderRadius: 24,
+                      background: "linear-gradient(135deg, rgba(10, 10, 20, 0.4) 0%, rgba(30, 30, 50, 0.1) 100%)",
+                      border: "2px solid rgba(16,185,129,0.9)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: 10,
+                      fontSize: 14,
                       fontWeight: "bold",
                       color: "#10b981",
                       flexShrink: 0,
+                      backdropFilter: "blur(10px)",
+                      WebkitBackdropFilter: "blur(10px)",
+                      boxShadow: "0 0 10px rgba(16,185,129,0.7), inset 0 0 5px rgba(16,185,129,0.4)",
                     }}
                   >
                     {cmd.type.toUpperCase()}
@@ -381,7 +424,7 @@ export function AddCommandsSection({ onClose, onSound }: AddCommandsSectionProps
                   <div style={{ flex: 1, overflow: "hidden" }}>
                     <div
                       style={{
-                        fontSize: 13,
+                        fontSize: 18,
                         fontWeight: "bold",
                         color: "rgba(255,255,255,0.9)",
                         fontFamily: "'RexBold', sans-serif",
@@ -394,7 +437,7 @@ export function AddCommandsSection({ onClose, onSound }: AddCommandsSectionProps
                     </div>
                     <div
                       style={{
-                        fontSize: 10,
+                        fontSize: 14,
                         color: "rgba(255,255,255,0.4)",
                         fontFamily: "'RexBold', sans-serif",
                         whiteSpace: "nowrap",
@@ -412,11 +455,16 @@ export function AddCommandsSection({ onClose, onSound }: AddCommandsSectionProps
                       border: "none",
                       color: "rgba(255,80,80,0.5)",
                       cursor: "pointer",
-                      fontSize: 16,
                       padding: "4px",
+                      display: "flex", alignItems: "center", justifyContent: "center",
                     }}
                   >
-                    ✕
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      <line x1="10" y1="11" x2="10" y2="17"></line>
+                      <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
                   </button>
                 </div>
               ))}

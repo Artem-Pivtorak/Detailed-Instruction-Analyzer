@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LiquidGlass } from "./LiquidGlass";
+import { GlassDock } from "./GlassDock";
 import memoryIcon from "../../../../images-icons/memory.png";
 import settingsIcon from "../../../../images-icons/settings.png";
 import peopleIcon from "../../../../images-icons/people.png";
@@ -8,6 +8,7 @@ import reminderIcon from "../../../../images-icons/reminder.png";
 import pluginsIcon from "../../../../images-icons/plugins.png";
 import commandsIcon from "../../../../images-icons/comands.png";
 import addCommandsIcon from "../../../../images-icons/add comands.png";
+import brainIcon from "../../../../images-icons/brain.png";
 
 type Section =
   | "memory"
@@ -16,7 +17,8 @@ type Section =
   | "plugins"
   | "commands"
   | "addcommands"
-  | "people";
+  | "people"
+  | "brain";
 
 interface SidePanelProps {
   open: boolean;
@@ -45,6 +47,12 @@ const MODULES: { key: Section; name: string; color: string; icon: string }[] = [
     name: "module.plugins",
     color: "#3b82f6",
     icon: pluginsIcon,
+  },
+  {
+    key: "brain",
+    name: "module.brain",
+    color: "#6b7280",
+    icon: brainIcon,
   },
   {
     key: "commands",
@@ -115,13 +123,13 @@ function PluginDropdown({
 
   function toggle() {
     setOpen((v) => !v);
-    onSound(open ? "close" : "click");
+    onSound(open ? "click-2-clowse" : "click-4");
   }
 
   function choose(opt: string) {
     onSelect(opt);
     setOpen(false);
-    onSound("switch");
+    onSound("click-4");
   }
 
   return (
@@ -148,7 +156,8 @@ function PluginDropdown({
           justifyContent: "center",
           gap: 6,
           padding: "8px 6px",
-          transition: "background 0.15s, border-color 0.15s, border-radius 0.15s, box-shadow 0.15s",
+          transition:
+            "background 0.15s, border-color 0.15s, border-radius 0.15s, box-shadow 0.15s",
           boxShadow: open ? `0 0 14px ${plugin.color}30` : "none",
           position: "relative",
           fontFamily: "'RexBold', sans-serif",
@@ -216,7 +225,12 @@ function PluginDropdown({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 600, damping: 40, mass: 0.5 }}
+            transition={{
+              type: "spring",
+              stiffness: 600,
+              damping: 40,
+              mass: 0.5,
+            }}
             style={{
               position: "absolute",
               top: "100%",
@@ -235,9 +249,17 @@ function PluginDropdown({
                 ? `0 8px 24px rgba(0,0,0,0.8), 0 0 18px ${plugin.color}25`
                 : "none",
               overflowY: "auto",
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
               maxHeight: 250,
             }}
+            className="plugin-dropdown-menu"
           >
+            <style>{`
+              .plugin-dropdown-menu::-webkit-scrollbar {
+                display: none;
+              }
+            `}</style>
             {plugin.options.map((opt, i) => {
               const isActive = opt === selected;
               return (
@@ -285,7 +307,9 @@ function PluginDropdown({
                       width: 5,
                       height: 5,
                       borderRadius: "50%",
-                      background: isActive ? plugin.color : "rgba(255,255,255,0.2)",
+                      background: isActive
+                        ? plugin.color
+                        : "rgba(255,255,255,0.2)",
                       flexShrink: 0,
                       boxShadow: isActive ? `0 0 6px ${plugin.color}` : "none",
                       transition: "all 0.1s",
@@ -403,262 +427,289 @@ export function SidePanel({
         )}
       </AnimatePresence>
 
-
       {/* Panel */}
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ x: "-100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "-100%" }}
-            transition={{
-              type: "spring",
-              stiffness: 450,
-              damping: 35,
-              mass: 0.6,
+            initial={{ width: 0, height: 0 }}
+            animate={{ width: 450, height: "100%" }}
+            exit={{ width: 0, height: 0 }}
+            transition={{ 
+              duration: 0.4,
+              ease: "easeInOut",
+              times: [0, 0.5, 1]
             }}
             style={{
               position: "fixed",
               top: 0,
               left: 0,
-              width: 450,
-              height: "100%",
               zIndex: 300,
               display: "flex",
               flexDirection: "column",
               boxShadow: "10px 0 60px rgba(0,0,0,0.8)",
               overflow: "hidden",
+              background:
+                "radial-gradient(ellipse at 50% 50%, transparent 20%, rgba(0, 10, 25, 0.15) 70%, rgba(0, 10, 25, 0.3) 100%)",
             }}
           >
-            {/* WebGL liquid glass effect */}
-            <LiquidGlass
-              width={450}
-              height="100%"
-              style={{ position: "absolute", top: 0, left: 0, zIndex: 0, width: "100%", height: "100%" }}
+            <GlassDock
               borderRadius={0}
+              className="no-glass-edge"
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                zIndex: 0,
+                width: "100%",
+                height: "100%",
+              }}
             />
-            
+
             {/* Content wrapper with higher z-index */}
-            <div style={{ position: "relative", zIndex: 3, display: "flex", flexDirection: "column", height: "100%" }}>
-        {/* Header */}
-        <div
-          style={{
-            padding: "36px 32px 24px",
-            borderBottom: "1px solid rgba(0,180,255,0.10)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexShrink: 0,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
             <div
               style={{
-                width: 16,
-                height: 16,
-                borderRadius: "50%",
-                background: "#00cfff",
-                boxShadow: "0 0 10px #00cfff, 0 0 20px #00cfff",
-              }}
-            />
-            <span
-              style={{
-                fontFamily: "pdark",
-                fontSize: 22,
-                fontWeight: "bold",
-                letterSpacing: "0.15em",
-                color: "#00cfff",
-                textShadow: "0 0 12px rgba(0,200,255,0.6)",
+                position: "relative",
+                zIndex: 3,
+                display: "flex",
+                flexDirection: "column",
+                height: "100%",
               }}
             >
-              {t("appName")}
-            </span>
-          </div>
-          <button
-            onClick={() => {
-              onClose();
-              onSound("close");
-            }}
-            style={{
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 10,
-              color: "rgba(255,255,255,0.4)",
-              cursor: "pointer",
-              fontSize: 22,
-              width: 44,
-              height: 44,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "color 0.15s ease-out, background 0.15s ease-out",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.color = "rgba(255,255,255,0.4)")
-            }
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Plugin dropdowns area */}
-        <div
-          style={{
-            padding: "24px 28px 28px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 16,
-            borderBottom: "1px solid rgba(120,120,120,0.15)",
-            flexShrink: 0,
-            position: "relative",
-            zIndex: 350,
-          }}
-        >
-          {/* First 4: Grid 2x2 */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "14px 16px",
-            }}
-          >
-            {pluginsConfig.map((p, idx) => (
-              <PluginDropdown
-                key={p.id}
-                plugin={p}
-                onSound={onSound}
-                selected={p.selected}
-                onSelect={p.onSelect}
-                alignRight={idx % 2 === 1}
-              />
-            ))}
-          </div>
-
-          {/* LLM Model: Full width row */}
-          <PluginDropdown
-            plugin={{
-              id: "llm_model",
-              label: "MODEL",
-              color: "#f87171",
-              options: LLM_MODELS_MAP[llmEngine],
-            }}
-            onSound={onSound}
-            selected={llmModel}
-            onSelect={setLlmModel}
-            fullWidth
-          />
-        </div>
-
-        {/* Module buttons */}
-        <div style={{ padding: "28px 28px", flex: 1, overflowY: "auto", borderTop: "1px solid rgba(120,120,120,0.15)" }}>
-          <p
-            style={{
-              fontSize: 14,
-              color: "rgba(255,255,255,0.25)",
-              letterSpacing: "0.14em",
-              marginBottom: 18,
-              fontFamily: "pdark",
-              paddingLeft: 4,
-            }}
-          >
-            MODULES
-          </p>
-
-          {MODULES.map((item) => {
-            return (
-              <motion.button
-                key={item.key}
-                onClick={() => handleModuleClick(item.key)}
-                onMouseEnter={() => {
-                  onSound("hover");
-                }}
-                whileHover="hover"
-                initial="initial"
-                whileTap={{ scale: 0.98 }}
-                variants={{
-                  initial: { 
-                    background: "transparent",
-                    borderLeftColor: "transparent" 
-                  },
-                  hover: { 
-                    x: 6,
-                    background: `${item.color}12`,
-                    borderLeftColor: item.color 
-                  }
-                }}
-                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              {/* Header */}
+              <div
                 style={{
+                  padding: "36px 32px 24px",
+                  borderBottom: "1px solid rgba(0,180,255,0.10)",
                   display: "flex",
                   alignItems: "center",
-                  gap: 18,
-                  width: "100%",
-                  padding: "16px 28px",
-                  borderRadius: 0,
-                  marginBottom: 0,
-                  cursor: "pointer",
-                  border: "none",
-                  borderLeft: `3px solid transparent`,
-                  textAlign: "left",
-                  position: "relative",
+                  justifyContent: "space-between",
+                  flexShrink: 0,
                 }}
               >
-                <motion.div
+                <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+                  <div
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: "50%",
+                      background: "#00cfff",
+                      boxShadow: "0 0 10px #00cfff, 0 0 20px #00cfff",
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontFamily: "pdark",
+                      fontSize: 22,
+                      fontWeight: "bold",
+                      letterSpacing: "0.15em",
+                      color: "#00cfff",
+                      textShadow: "0 0 12px rgba(0,200,255,0.6)",
+                    }}
+                  >
+                    {t("appName")}
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    onClose();
+                    onSound("close");
+                  }}
                   style={{
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 10,
+                    color: "rgba(255,255,255,0.4)",
+                    cursor: "pointer",
+                    fontSize: 22,
                     width: 44,
                     height: 44,
-                    borderRadius: 12,
-                    background: `${item.color}15`,
-                    border: `1px solid ${item.color}30`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    flexShrink: 0,
+                    transition:
+                      "color 0.15s ease-out, background 0.15s ease-out",
                   }}
-                  variants={{
-                    initial: { scale: 1 },
-                    hover: { scale: 1.05 }
-                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.color = "rgba(255,255,255,0.4)")
+                  }
                 >
-                  <img
-                    src={item.icon}
-                    alt={item.name.toLowerCase()}
-                    style={{ width: 26, height: 26, objectFit: "contain" }}
-                  />
-                </motion.div>
+                  ✕
+                </button>
+              </div>
 
-                <motion.span
-                  variants={{
-                    initial: { color: "rgba(255,255,255,0.60)" },
-                    hover: { color: item.color }
-                  }}
+              {/* Plugin dropdowns area */}
+              <div
+                style={{
+                  padding: "24px 28px 28px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 16,
+                  borderBottom: "1px solid rgba(120,120,120,0.15)",
+                  flexShrink: 0,
+                  position: "relative",
+                  zIndex: 350,
+                }}
+              >
+                {/* First 4: Grid 2x2 */}
+                <div
                   style={{
-                    fontSize: 15,
-                    fontFamily: "RexBold",
-                    fontWeight: "bold",
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase"
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "14px 16px",
                   }}
                 >
-                  {t(item.name)}
-                </motion.span>
+                  {pluginsConfig.map((p, idx) => (
+                    <PluginDropdown
+                      key={p.id}
+                      plugin={p}
+                      onSound={onSound}
+                      selected={p.selected}
+                      onSelect={p.onSelect}
+                      alignRight={idx % 2 === 1}
+                    />
+                  ))}
+                </div>
 
-                <motion.div
-                  variants={{
-                    initial: { color: "rgba(255,255,255,0.1)", x: 0 },
-                    hover: { color: item.color, x: 4 }
+                {/* LLM Model: Full width row */}
+                <PluginDropdown
+                  plugin={{
+                    id: "llm_model",
+                    label: "MODEL",
+                    color: "#f87171",
+                    options: LLM_MODELS_MAP[llmEngine],
                   }}
+                  onSound={onSound}
+                  selected={llmModel}
+                  onSelect={setLlmModel}
+                  fullWidth
+                />
+              </div>
+
+              {/* Module buttons */}
+              <div
+                style={{
+                  padding: "28px 28px",
+                  flex: 1,
+                  overflowY: "auto",
+                  borderTop: "1px solid rgba(120,120,120,0.15)",
+                }}
+              >
+                <p
                   style={{
-                    marginLeft: "auto",
-                    fontSize: 12,
+                    fontSize: 14,
+                    color: "rgba(255,255,255,0.25)",
+                    letterSpacing: "0.14em",
+                    marginBottom: 18,
+                    fontFamily: "pdark",
+                    paddingLeft: 4,
                   }}
                 >
-                  ▶
-                </motion.div>
-              </motion.button>
-            );
-          })}
-        </div>
+                  MODULES
+                </p>
+
+                {MODULES.map((item) => {
+                  return (
+                    <motion.button
+                      key={item.key}
+                      onClick={() => handleModuleClick(item.key)}
+                      onMouseEnter={() => {
+                        onSound("hover");
+                      }}
+                      whileHover="hover"
+                      initial="initial"
+                      whileTap={{ scale: 0.98 }}
+                      variants={{
+                        initial: {
+                          background: "transparent",
+                          borderLeftColor: "transparent",
+                        },
+                        hover: {
+                          x: 6,
+                          background: `${item.color}12`,
+                          borderLeftColor: item.color,
+                        },
+                      }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 500,
+                        damping: 30,
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 18,
+                        width: "100%",
+                        padding: "16px 28px",
+                        borderRadius: 0,
+                        marginBottom: 0,
+                        cursor: "pointer",
+                        border: "none",
+                        borderLeft: `3px solid transparent`,
+                        textAlign: "left",
+                        position: "relative",
+                      }}
+                    >
+                      <motion.div
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 12,
+                          background: `${item.color}15`,
+                          border: `1px solid ${item.color}30`,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                        variants={{
+                          initial: { scale: 1 },
+                          hover: { scale: 1.05 },
+                        }}
+                      >
+                        <img
+                          src={item.icon}
+                          alt={item.name.toLowerCase()}
+                          style={{
+                            width: 26,
+                            height: 26,
+                            objectFit: "contain",
+                          }}
+                        />
+                      </motion.div>
+
+                      <motion.span
+                        variants={{
+                          initial: { color: "rgba(255,255,255,0.60)" },
+                          hover: { color: item.color },
+                        }}
+                        style={{
+                          fontSize: 15,
+                          fontFamily: "RexBold",
+                          fontWeight: "bold",
+                          letterSpacing: "0.08em",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {t(item.name)}
+                      </motion.span>
+
+                      <motion.div
+                        variants={{
+                          initial: { color: "rgba(255,255,255,0.1)", x: 0 },
+                          hover: { color: item.color, x: 4 },
+                        }}
+                        style={{
+                          marginLeft: "auto",
+                          fontSize: 12,
+                        }}
+                      >
+                        ▶
+                      </motion.div>
+                    </motion.button>
+                  );
+                })}
+              </div>
             </div>
           </motion.div>
         )}

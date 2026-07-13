@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { HoneycombBackground } from "../components/HoneycombBackground";
 import { useI18n } from "../i18n";
 
 interface SettingsSectionProps {
@@ -33,7 +32,7 @@ function Switch({
     >
       <span
         style={{
-          fontSize: 12,
+          fontSize: 16,
           color: "rgba(255,255,255,0.7)",
           fontFamily: "'RexBold', sans-serif",
           letterSpacing: "0.05em",
@@ -43,27 +42,35 @@ function Switch({
       </span>
       <div
         onClick={() => onChange(!on)}
+        onMouseDown={(e) => {
+          (e.currentTarget as HTMLDivElement).style.transform = "scale(0.98)";
+        }}
+        onMouseUp={(e) => {
+          (e.currentTarget as HTMLDivElement).style.transform = "scale(1)";
+        }}
         style={{
-          width: 44,
-          height: 24,
-          borderRadius: 12,
-          background: on ? "rgba(160,50,255,0.4)" : "rgba(255,255,255,0.1)",
-          border: `1px solid ${on ? "rgba(160,50,255,0.6)" : "rgba(255,255,255,0.15)"}`,
+          width: 56,
+          height: 30,
+          borderRadius: 15,
+          background: on ? "linear-gradient(135deg, rgba(10, 10, 20, 0.4) 0%, rgba(30, 30, 50, 0.1) 100%)" : "linear-gradient(135deg, rgba(10, 10, 20, 0.4) 0%, rgba(30, 30, 50, 0.1) 100%)",
+          border: `2px solid ${on ? "rgba(168, 85, 247, 0.9)" : "rgba(255, 255, 255, 0.3)"}`,
           cursor: "pointer",
           position: "relative",
-          transition: "all 0.3s",
-          boxShadow: on ? "0 0 12px rgba(160,50,255,0.4)" : "none",
+          transition: "transform 0.1s, all 0.3s",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
+          boxShadow: on ? "0 0 10px rgba(168, 85, 247, 0.7), inset 0 0 5px rgba(168, 85, 247, 0.4)" : "0 0 10px rgba(255, 255, 255, 0.3), inset 0 0 5px rgba(255, 255, 255, 0.2)",
         }}
       >
         <div
           style={{
             position: "absolute",
-            top: 3,
-            left: on ? 22 : 3,
-            width: 16,
-            height: 16,
+            top: 4,
+            left: on ? 28 : 5,
+            width: 20,
+            height: 20,
             borderRadius: "50%",
-            background: on ? "#c084fc" : "rgba(255,255,255,0.4)",
+            background: on ? "#c084fc" : "#ffffff40",
             transition: "left 0.3s cubic-bezier(0.34,1.56,0.64,1)",
             boxShadow: on ? "0 0 8px rgba(160,50,255,0.8)" : "none",
           }}
@@ -86,27 +93,38 @@ function GlassPlaqueCycler({
     <div
       onClick={onCycle}
       style={{
-        background: "rgba(160,50,255,0.08)",
-        border: "1px solid rgba(160,50,255,0.25)",
-        borderRadius: 10,
-        padding: "10px 16px",
+        background: "linear-gradient(135deg, rgba(10, 10, 20, 0.4) 0%, rgba(30, 30, 50, 0.1) 100%)",
+        border: "2px solid rgba(168, 85, 247, 0.9)",
+        borderRadius: 20,
+        padding: "14px 20px",
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
+        boxShadow: "0 0 10px rgba(168, 85, 247, 0.7), inset 0 0 5px rgba(168, 85, 247, 0.4)",
         cursor: "pointer",
+        transition: "transform 0.1s, background 0.2s",
         marginBottom: 16,
-        transition: "all 0.2s",
         userSelect: "none",
       }}
-      onMouseEnter={(e) =>
+      onMouseEnter={(e) => {
         ((e.currentTarget as HTMLDivElement).style.background =
-          "rgba(160,50,255,0.16)")
-      }
-      onMouseLeave={(e) =>
+          "#a855f718");
+      }}
+      onMouseLeave={(e) => {
         ((e.currentTarget as HTMLDivElement).style.background =
-          "rgba(160,50,255,0.08)")
-      }
+          "#a855f70a");
+      }}
+      onMouseDown={(e) => {
+        ((e.currentTarget as HTMLDivElement).style.transform =
+          "scale(0.98)");
+      }}
+      onMouseUp={(e) => {
+        ((e.currentTarget as HTMLDivElement).style.transform =
+          "scale(1)");
+      }}
     >
       <span
         style={{
-          fontSize: 13,
+          fontSize: 18,
           color: "rgba(255,255,255,0.8)",
           fontFamily: "'RexBold', sans-serif"
         }}
@@ -118,24 +136,26 @@ function GlassPlaqueCycler({
 }
 
 function ApiKeyPlaque({ name, t }: { name: string, t: (k:string)=>string }) {
-  const [editing, setEditing] = useState(false);
   const [val, setVal] = useState("");
   return (
     <div
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 8,
+        gap: 0,
         marginBottom: 10,
-        background: "rgba(160,50,255,0.06)",
-        border: "1px solid rgba(160,50,255,0.18)",
-        borderRadius: 10,
-        padding: "8px 12px",
+        background: "linear-gradient(135deg, rgba(10, 10, 20, 0.4) 0%, rgba(30, 30, 50, 0.1) 100%)",
+        border: "2px solid rgba(168, 85, 247, 0.9)",
+        borderRadius: 20,
+        padding: "12px 16px",
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
+        boxShadow: "0 0 10px rgba(168, 85, 247, 0.7), inset 0 0 5px rgba(168, 85, 247, 0.4)",
       }}
     >
       <span
         style={{
-          fontSize: 12,
+          fontSize: 16,
           color: "rgba(255,255,255,0.7)",
           fontFamily: "'RexBold', sans-serif",
           flex: 1,
@@ -143,53 +163,21 @@ function ApiKeyPlaque({ name, t }: { name: string, t: (k:string)=>string }) {
       >
         {name}
       </span>
-      {editing ? (
-        <input
-          autoFocus
-          value={val}
-          onChange={(e) => setVal(e.target.value)}
-          placeholder="enter key..."
-          style={{
-            background: "transparent",
-            border: "none",
-            outline: "none",
-            color: "#c084fc",
-            fontSize: 12,
-            fontFamily: "'RexBold', sans-serif",
-            width: 80,
-          }}
-        />
-      ) : null}
-      <button
-        onClick={() => setEditing(!editing)}
+      <input
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        placeholder="enter key..."
         style={{
-          background: "none",
+          background: "transparent",
           border: "none",
-          color: "rgba(255,255,255,0.4)",
-          cursor: "pointer",
-          fontSize: 14,
-          padding: 0,
+          outline: "none",
+          color: "#c084fc",
+          fontSize: 16,
+          fontFamily: "'RexBold', sans-serif",
+          width: 290,
+          marginRight: 50,
         }}
-        title={t("common.edit")}
-      >
-        ✎
-      </button>
-      <button
-        onClick={() => {
-          setEditing(false);
-        }}
-        style={{
-          background: "none",
-          border: "none",
-          color: "rgba(160,50,255,0.7)",
-          cursor: "pointer",
-          fontSize: 14,
-          padding: 0,
-        }}
-        title={t("common.save")}
-      >
-        ✓
-      </button>
+      />
     </div>
   );
 }
@@ -230,7 +218,7 @@ export function SettingsSection({
 
   function handleClose() {
     setVisible(false);
-    onSound("close");
+    onSound("click-2-clowse");
     setTimeout(onClose, 300);
   }
 
@@ -243,48 +231,61 @@ export function SettingsSection({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(0,0,0,0.6)",
-        backdropFilter: "blur(4px)",
+        background: "rgba(0,0,0,0.75)",
+        backdropFilter: "blur(48px) saturate(150%)",
+        WebkitBackdropFilter: "blur(48px) saturate(150%)",
       }}
     >
       <div
+        className="droplet-up"
         style={{
-          width: 360,
-          background: "rgba(5,5,20,0.95)",
-          border: "1px solid rgba(160,50,255,0.3)",
-          borderRadius: 16,
+          width: 580,
+          background: "#000000",
+          border: "2px solid rgba(160,50,255,0.4)",
+          borderRadius: 24,
           position: "relative",
           overflow: "hidden",
           boxShadow:
-            "0 0 60px rgba(160,50,255,0.3), 0 0 120px rgba(160,50,255,0.1)",
-          backdropFilter: "blur(24px)",
+            "0 0 80px rgba(160,50,255,0.3), 0 0 160px rgba(160,50,255,0.15)",
           transform: visible
             ? "scale(1) translateY(0)"
             : "scale(0.9) translateY(20px)",
           opacity: visible ? 1 : 0,
           transition: "all 0.35s cubic-bezier(0.22,1,0.36,1)",
-          maxHeight: "90vh",
-          overflowY: "auto",
         }}
       >
-        <HoneycombBackground />
-        <div style={{ position: "relative", zIndex: 1, padding: 28 }}>
-          <button
-            onClick={handleClose}
-            style={{
-              position: "absolute",
-              top: 12,
-              right: 16,
-              background: "none",
-              border: "none",
-              color: "rgba(255,255,255,0.5)",
-              cursor: "pointer",
-              fontSize: 18,
-            }}
-          >
-            ✕
-          </button>
-
+        <button
+          onClick={handleClose}
+          style={{
+            position: "absolute",
+            top: 20,
+            right: 12,
+            zIndex: 10,
+            background: "none",
+            border: "none",
+            color: "rgba(255,255,255,0.5)",
+            cursor: "pointer",
+            fontSize: 28,
+            lineHeight: 1,
+          }}
+        >
+          ✕
+        </button>
+        <div
+          style={{
+            maxHeight: "90vh",
+            overflowY: "auto",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+          }}
+          className="settings-scroll-container"
+        >
+        <style>{`
+          .settings-scroll-container::-webkit-scrollbar {
+            display: none;
+          }
+        `}</style>
+          <div style={{ position: "relative", zIndex: 1, padding: 40 }}>
           <div
             style={{
               position: "sticky",
@@ -296,13 +297,13 @@ export function SettingsSection({
           >
             <h2
               style={{
-                fontFamily: "'RexBold', sans-serif",
-                fontSize: 22,
+                fontFamily: "'pdark', sans-serif",
+                fontSize: 32,
                 fontWeight: "bold",
                 color: "#a855f7",
                 textShadow: "0 0 20px rgba(168,85,247,0.8)",
                 letterSpacing: "0.2em",
-                marginBottom: 12,
+                marginBottom: 28,
                 textAlign: "center",
               }}
             >
@@ -312,7 +313,7 @@ export function SettingsSection({
 
           <p
             style={{
-              fontSize: 11,
+              fontSize: 16,
               color: "#a855f7",
               letterSpacing: "0.15em",
               fontFamily: "'RexBold', sans-serif",
@@ -327,7 +328,7 @@ export function SettingsSection({
             onCycle={() => {
               const next = (langIdx + 1) % LANGUAGES.length;
               setLangIdx(next);
-              onSound("toggle");
+              onSound("click-4");
               if (onLanguageChange) onLanguageChange(LANGUAGES[next] as any);
               if (typeof (window as any).setAppLanguage === "function")
                 (window as any).setAppLanguage(LANGUAGES[next]);
@@ -336,7 +337,7 @@ export function SettingsSection({
 
           <p
             style={{
-              fontSize: 11,
+              fontSize: 16,
               color: "#a855f7",
               letterSpacing: "0.15em",
               fontFamily: "'RexBold', sans-serif",
@@ -351,19 +352,19 @@ export function SettingsSection({
 
           {/* City input + save (replaces cycler) */}
           <div
-            style={{ display: "flex", gap: 8, marginTop: 10, marginBottom: 6 }}
+            style={{ display: "flex", gap: 8, marginTop: 30, marginBottom: 6, justifyContent: "center" }}
           >
             <input
               value={city}
               onChange={(e) => setCity(e.target.value)}
               placeholder={t("settings.city")}
               style={{
-                flex: 1,
+                width: 150,
                 background: "transparent",
-                border: "1px solid rgba(168,85,247,0.45)",
-                boxShadow: "0 0 10px rgba(168,85,247,0.06)",
-                padding: "8px 10px",
-                borderRadius: 6,
+                border: "2px solid rgba(168, 85, 247, 0.9)",
+                boxShadow: "0 0 10px rgba(168, 85, 247, 0.7), inset 0 0 5px rgba(168, 85, 247, 0.4)",
+                padding: "12px 16px",
+                borderRadius: 20,
                 color: "white",
               }}
             />
@@ -371,11 +372,17 @@ export function SettingsSection({
               onClick={() => {
                 onSound("click"); /* pretend save */
               }}
+              onMouseDown={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.98)";
+              }}
+              onMouseUp={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
+              }}
               style={{
-                padding: "8px 10px",
-                borderRadius: 6,
-                border: "1px solid rgba(168,85,247,0.35)",
-                background: "rgba(160,50,255,0.08)",
+                padding: "12px 16px",
+                borderRadius: 20,
+                border: "2px solid rgba(168, 85, 247, 0.9)",
+                background: "linear-gradient(135deg, rgba(10, 10, 20, 0.4) 0%, rgba(30, 30, 50, 0.1) 100%)",
                 color: "#c084fc",
               }}
             >
@@ -394,10 +401,10 @@ export function SettingsSection({
               style={{
                 flex: 1,
                 background: "transparent",
-                border: "1px solid rgba(168,85,247,0.45)",
-                boxShadow: "0 0 10px rgba(168,85,247,0.06)",
-                padding: "8px 10px",
-                borderRadius: 6,
+                border: "2px solid rgba(168, 85, 247, 0.9)",
+                boxShadow: "0 0 10px rgba(168, 85, 247, 0.7), inset 0 0 5px rgba(168, 85, 247, 0.4)",
+                padding: "12px 16px",
+                borderRadius: 20,
                 color: "white",
               }}
             />
@@ -405,12 +412,20 @@ export function SettingsSection({
               onClick={() => {
                 onSound("click"); /* pretend select */
               }}
+              onMouseDown={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.98)";
+              }}
+              onMouseUp={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
+              }}
               style={{
-                padding: "8px 10px",
-                borderRadius: 6,
-                border: "1px solid rgba(168,85,247,0.35)",
-                background: "rgba(160,50,255,0.08)",
+                padding: "12px 16px",
+                borderRadius: 20,
+                border: "2px solid rgba(168, 85, 247, 0.9)",
+                background: "linear-gradient(135deg, rgba(10, 10, 20, 0.4) 0%, rgba(30, 30, 50, 0.1) 100%)",
                 color: "#c084fc",
+                cursor: "pointer",
+                transition: "transform 0.1s, background 0.2s",
               }}
             >
               {t("common.choose")}
@@ -428,9 +443,9 @@ export function SettingsSection({
               on={soundEnabled}
               onChange={(v) => {
                 onSoundToggle(v);
-                onSound("switch");
+                onSound("click-4");
               }}
-              label={t("settings.sound")}
+              label="PEOPLE RECOGNITION"
             />
             <Switch
               on={sysVoice}
@@ -462,7 +477,7 @@ export function SettingsSection({
               >
                 <div
                   style={{
-                    fontSize: 9,
+                    fontSize: 14,
                     color: "rgba(255,255,255,0.4)",
                     letterSpacing: "0.1em",
                     fontFamily: "'RexBold', sans-serif",
@@ -472,7 +487,7 @@ export function SettingsSection({
                 </div>
                 <div
                   style={{
-                    fontSize: 14,
+                    fontSize: 18,
                     color,
                     fontWeight: "bold",
                     fontFamily: "'RexBold', sans-serif",
@@ -484,6 +499,7 @@ export function SettingsSection({
               </div>
             ))}
           </div>
+        </div>
         </div>
       </div>
     </div>

@@ -1,0 +1,73 @@
+import type { Variants, Transition } from "framer-motion";
+
+/**
+ * Shared "liquid appearance" mount-in treatment for UI surfaces.
+ *
+ * Mirrors the reference liquid-toggle's core trick — resolve from a soft,
+ * blurred, slightly-shrunken blob into a crisp final shape — applied as an
+ * entrance transition instead of a toggle interaction. Scale/position use a
+ * bouncy spring (the "liquid settling" wobble); opacity/blur use a quicker
+ * plain fade so the shape doesn't flicker while it's still jiggling into
+ * place.
+ *
+ * Usage:
+ *   <motion.div
+ *     variants={liquidAppear}
+ *     initial="hidden"
+ *     animate="visible"
+ *     exit="hidden"
+ *     transition={liquidAppearTransition}
+ *   />
+ *
+ * For elements that aren't already offset by their own delay and need to
+ * stagger relative to siblings (e.g. a row of buttons appearing one after
+ * another), swap `transition` for `liquidAppearDelay(seconds)`.
+ */
+
+const SPRING = {
+  type: "spring" as const,
+  stiffness: 170,
+  damping: 15,
+  mass: 0.9,
+};
+
+const FADE_SECONDS = 0.32;
+const BLUR_SECONDS = 0.42;
+
+export const liquidAppear: Variants = {
+  hidden: {
+    opacity: 0,
+    scale: 0.82,
+    y: 16,
+    filter: "blur(18px)",
+  },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    filter: "blur(0px)",
+  },
+};
+
+export const liquidAppearTransition: Transition = {
+  scale: SPRING,
+  y: SPRING,
+  opacity: { duration: FADE_SECONDS, ease: "easeOut" },
+  filter: { duration: BLUR_SECONDS, ease: "easeOut" },
+};
+
+/**
+ * `liquidAppearTransition` with an extra mount delay (in seconds) applied to
+ * every animated property. Use for elements that aren't already nested
+ * under a staggered parent — e.g. the mic / mode / sound button cluster,
+ * each offset a little from the last so they resolve in sequence rather
+ * than all at once.
+ */
+export function liquidAppearDelay(delay: number): Transition {
+  return {
+    scale: { ...SPRING, delay },
+    y: { ...SPRING, delay },
+    opacity: { duration: FADE_SECONDS, ease: "easeOut", delay },
+    filter: { duration: BLUR_SECONDS, ease: "easeOut", delay },
+  };
+}
