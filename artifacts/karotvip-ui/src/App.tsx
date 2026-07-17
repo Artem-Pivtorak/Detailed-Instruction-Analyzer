@@ -92,8 +92,10 @@ export default function App() {
   const [showPersonDrop, setShowPersonDrop] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [isPlayingVoice, setIsPlayingVoice] = useState(false);
+  const voiceAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  const { play } = useSound(soundEnabled);
+  const { play, stop } = useSound(soundEnabled);
 
   const playSound = useCallback(
     (type: string) => {
@@ -102,10 +104,97 @@ export default function App() {
     [play],
   );
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+
+  const initAudio = () => {
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      analyserRef.current = audioCtxRef.current.createAnalyser();
+      analyserRef.current.fftSize = 512;
+      analyserRef.current.smoothingTimeConstant = 0.8;
+    }
+  };
+
+  const wireUpAudio = (audio: HTMLAudioElement) => {
+    if (!audioCtxRef.current || !analyserRef.current) initAudio();
+    if (audioCtxRef.current && analyserRef.current && !(audio as any).__wired) {
+      const source = audioCtxRef.current.createMediaElementSource(audio);
+      source.connect(analyserRef.current);
+      analyserRef.current.connect(audioCtxRef.current.destination);
+      (audio as any).__wired = true;
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && voiceAudioRef.current) {
+      const url = URL.createObjectURL(file);
+      voiceAudioRef.current.src = url;
+      playSound("click");
+      initAudio();
+      wireUpAudio(voiceAudioRef.current);
+      if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
+      voiceAudioRef.current.play().catch(console.error);
+    }
+  };
+
+  const toggleVoice = useCallback(() => {
+    if (!voiceAudioRef.current) {
+      // Create audio object
+      const audio = new Audio("file:///D:/voice.pm3"); // As requested by user
+      audio.crossOrigin = "anonymous";
+      voiceAudioRef.current = audio;
+      
+      audio.onended = () => setIsPlayingVoice(false);
+      audio.onpause = () => setIsPlayingVoice(false);
+      audio.onplay = () => setIsPlayingVoice(true);
+      
+      let triedMp3 = false;
+      audio.onerror = () => {
+        if (!triedMp3) {
+          console.error("Failed to load D:\\voice.pm3. Trying .mp3 extension.");
+          triedMp3 = true;
+          audio.src = "file:///D:/voice.mp3";
+          audio.play().catch(e => {
+            console.error(e);
+            fileInputRef.current?.click(); // Auto-open file picker if both fail!
+          });
+        } else {
+          fileInputRef.current?.click(); // If it still fails, wait for manual file picker
+        }
+      };
+    }
+    
+    if (isPlayingVoice) {
+      voiceAudioRef.current.pause();
+    } else {
+      playSound("click");
+      // init WebAudio safe here on user interaction
+      initAudio();
+      wireUpAudio(voiceAudioRef.current);
+      if (audioCtxRef.current?.state === 'suspended') {
+        audioCtxRef.current.resume();
+      }
+      voiceAudioRef.current.play().catch(e => {
+         console.error("Audio playback failed: ", e);
+      });
+    }
+  }, [isPlayingVoice, playSound]);
+
+  const stopSound = useCallback(
+    (type: string, fadeMs?: number) => {
+      stop(type as any, fadeMs);
+    },
+    [stop],
+  );
+
   useEffect(() => {
     let timer: NodeJS.Timeout;
     let s1: NodeJS.Timeout;
     let s2: NodeJS.Timeout;
+    let s3: NodeJS.Timeout;
 
     // We use a small delay for everything to ensure the sound hook has
     // initialized its internals and paths are resolved.
@@ -118,9 +207,17 @@ export default function App() {
         playSound("download");
       }, 600);
 
+      // Start the "end-download" cue a little before the frame appears,
+      // so it overlaps and crossfades with the tail of "download".
+      s3 = setTimeout(() => {
+        playSound("end-download");
+      }, 2700);
+
       timer = setTimeout(() => {
         setMounted(true);
-        playSound("end-download");
+        // Stop "download" (text.wav) right as the text frame appears,
+        // instead of letting it play out its full length.
+        stopSound("download", 250);
       }, 3000);
     };
 
@@ -130,6 +227,8 @@ export default function App() {
       clearTimeout(timer);
       clearTimeout(s1);
       clearTimeout(s2);
+      clearTimeout(s3);
+      stopSound("download", 0);
     };
   }, []); // Empty dependency array ensures intro plays ONLY ONCE on mount
 
@@ -206,6 +305,7 @@ export default function App() {
   }
 
   function closeSection() {
+    playSound("click-3-clowse");
     setSection(null);
   }
 
@@ -269,11 +369,25 @@ export default function App() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              position: "relative",
+              overflow: "hidden",
+              background: "transparent",
+              border: "none",
+              color: micActive ? "#ff32b4" : "rgba(220, 220, 220, 0.9)"
             }}
             onMouseEnter={() => playSound("hover")}
             title="Microphone"
           >
-            🎙
+            <GlassDock 
+              borderRadius={26} 
+              disableEdge={true} 
+              overlayStyle={{
+                background: "linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 35%), radial-gradient(100% 80% at 50% -20%, rgba(160,50,255,0.12) 0%, transparent 60%)",
+                boxShadow: "inset 0 1px 1px rgba(255,255,255,0.25)"
+              }}
+              style={{ position: "absolute", inset: 0, zIndex: 0 }} 
+            />
+            <span style={{ position: "relative", zIndex: 2 }}>🎙</span>
           </motion.button>
         </motion.div>
 
@@ -297,10 +411,24 @@ export default function App() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              position: "relative",
+              overflow: "hidden",
+              background: "transparent",
+              border: "none",
+              color: inputMode === 0 ? "#00dcff" : inputMode === 1 ? "#00ff78" : "#ffdc00"
             }}
             onMouseEnter={() => playSound("hover")}
           >
-            {inputMode === 0 ? "A" : inputMode === 1 ? "I" : "⌨"}
+            <GlassDock 
+              borderRadius={26} 
+              disableEdge={true} 
+              overlayStyle={{
+                background: "linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 35%), radial-gradient(100% 80% at 50% -20%, rgba(160,50,255,0.12) 0%, transparent 60%)",
+                boxShadow: "inset 0 1px 1px rgba(255,255,255,0.25)"
+              }}
+              style={{ position: "absolute", inset: 0, zIndex: 0 }} 
+            />
+            <span style={{ position: "relative", zIndex: 2 }}>{inputMode === 0 ? "A" : inputMode === 1 ? "I" : "⌨"}</span>
           </motion.button>
         </motion.div>
 
@@ -327,42 +455,58 @@ export default function App() {
               alignItems: "center",
               justifyContent: "center",
               padding: 0,
+              position: "relative",
+              overflow: "hidden",
+              background: "transparent",
+              border: "none",
+              color: soundEnabled ? "#ff9600" : "rgba(160, 160, 160, 0.7)"
             }}
             onMouseEnter={() => {
               if (soundEnabled) playSound("hover");
             }}
           >
-            {soundEnabled ? (
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M11 5L6 9H2v6h4l5 4V5z" />
-                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-              </svg>
-            ) : (
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M11 5L6 9H2v6h4l5 4V5z" />
-                <line x1="23" y1="9" x2="17" y2="15" />
-                <line x1="17" y1="9" x2="23" y2="15" />
-              </svg>
-            )}
+            <GlassDock 
+              borderRadius={26} 
+              disableEdge={true} 
+              overlayStyle={{
+                background: "linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 35%), radial-gradient(100% 80% at 50% -20%, rgba(160,50,255,0.12) 0%, transparent 60%)",
+                boxShadow: "inset 0 1px 1px rgba(255,255,255,0.25)"
+              }}
+              style={{ position: "absolute", inset: 0, zIndex: 0 }} 
+            />
+            <div style={{ position: "relative", zIndex: 2, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {soundEnabled ? (
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                </svg>
+              ) : (
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                  <line x1="23" y1="9" x2="17" y2="15" />
+                  <line x1="17" y1="9" x2="23" y2="15" />
+                </svg>
+              )}
+            </div>
           </motion.button>
         </motion.div>
 
@@ -386,15 +530,28 @@ export default function App() {
                   display: "flex",
                   alignItems: "center",
                   gap: 10,
-                  background: "rgba(160, 160, 160, 0.08)",
-                  border: "1px solid rgba(160, 160, 160, 0.40)",
+                  background: "transparent",
+                  border: "none",
                   color: "rgba(220, 220, 220, 0.90)",
                   fontFamily: "'RexBold', sans-serif",
                   fontSize: 16,
                   letterSpacing: "0.08em",
+                  position: "relative",
+                  overflow: "hidden"
                 }}
               >
-                <span style={{ opacity: 0.5 }}>ID:</span> {selectedPerson}
+                <GlassDock 
+                  borderRadius={26} 
+                  disableEdge={true} 
+                  overlayStyle={{
+                    background: "linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 35%), radial-gradient(100% 80% at 50% -20%, rgba(160,50,255,0.12) 0%, transparent 60%)",
+                    boxShadow: "inset 0 1px 1px rgba(255,255,255,0.25)"
+                  }}
+                  style={{ position: "absolute", inset: 0, zIndex: 0 }} 
+                />
+                <div style={{ position: "relative", zIndex: 2, display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ opacity: 0.5 }}>ID:</span> {selectedPerson}
+                </div>
               </motion.button>
 
               <AnimatePresence>
@@ -408,25 +565,35 @@ export default function App() {
                       top: 60,
                       right: 0,
                       width: 220,
-                      background: "rgba(5,10,20,0.95)",
-                      border: "1px solid rgba(160, 160, 160, 0.3)",
+                      background: "transparent",
+                      border: "none",
                       borderRadius: 12,
                       padding: 8,
-                      backdropFilter: "blur(20px)",
+                      overflow: "hidden"
                     }}
                   >
-                    {["AI CORE", "JARVIS", "FRIDAY", "DIRECTOR"].map((p) => (
-                      <button
-                        key={p}
-                        onClick={() => {
-                          setSelectedPerson(p);
-                          setShowPersonDrop(false);
-                          playSound("hover");
-                        }}
-                        style={{
-                          width: "100%",
-                          padding: "10px 12px",
-                          background: "transparent",
+                    <GlassDock 
+                      borderRadius={12} 
+                      disableEdge={true} 
+                      overlayStyle={{
+                        background: "linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 35%), radial-gradient(100% 80% at 50% -20%, rgba(160,50,255,0.12) 0%, transparent 60%)",
+                        boxShadow: "inset 0 1px 1px rgba(255,255,255,0.25)"
+                      }}
+                      style={{ position: "absolute", inset: 0, zIndex: 0 }} 
+                    />
+                    <div style={{ position: "relative", zIndex: 2, display: "flex", flexDirection: "column", gap: 4 }}>
+                      {["AI CORE", "JARVIS", "FRIDAY", "DIRECTOR"].map((p) => (
+                        <button
+                          key={p}
+                          onClick={() => {
+                            setSelectedPerson(p);
+                            setShowPersonDrop(false);
+                            playSound("hover");
+                          }}
+                          style={{
+                            width: "100%",
+                            padding: "10px 12px",
+                            background: "transparent",
                           border: "none",
                           color:
                             p === selectedPerson
@@ -450,6 +617,7 @@ export default function App() {
                         {p}
                       </button>
                     ))}
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -478,14 +646,68 @@ export default function App() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              background: "rgba(0, 220, 255, 0.08)",
-              border: "1px solid rgba(0, 220, 255, 0.55)",
+              background: "transparent",
+              border: "none",
               color: "rgba(0, 220, 255, 0.90)",
+              position: "relative",
+              overflow: "hidden"
             }}
             onMouseEnter={() => playSound("hover")}
             title="Menu"
           >
-            ☰
+            <GlassDock 
+              borderRadius={26} 
+              disableEdge={true} 
+              overlayStyle={{
+                background: "linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 35%), radial-gradient(100% 80% at 50% -20%, rgba(160,50,255,0.12) 0%, transparent 60%)",
+                boxShadow: "inset 0 1px 1px rgba(255,255,255,0.25)"
+              }}
+              style={{ position: "absolute", inset: 0, zIndex: 0 }} 
+            />
+            <span style={{ position: "relative", zIndex: 2 }}>☰</span>
+          </motion.button>
+        </motion.div>
+
+        {/* Play Voice Button */}
+        <motion.div
+          className="droplet-right"
+          style={{ position: "absolute", bottom: 40, right: 20, zIndex: 50, animationDelay: "0.8s" }}
+        >
+          <motion.button
+            className={`neon-btn motion-gpu ${isPlayingVoice ? "neon-cyan" : "neon-cyan"}`}
+            whileHover={{ scale: 1.15, rotate: 5 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={toggleVoice}
+            style={{
+              borderRadius: "50%",
+              width: 52,
+              height: 52,
+              fontSize: 24,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "transparent",
+              border: "none",
+              color: "rgba(0, 220, 255, 0.90)",
+              textShadow: isPlayingVoice ? '0 0 10px #00dcff' : 'none',
+              position: "relative",
+              overflow: "hidden"
+            }}
+            onMouseEnter={() => playSound("hover")}
+            title="Play Audio"
+          >
+            <GlassDock 
+              borderRadius={26} 
+              disableEdge={true} 
+              overlayStyle={{
+                background: "linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 35%), radial-gradient(100% 80% at 50% -20%, rgba(160,50,255,0.12) 0%, transparent 60%)",
+                boxShadow: "inset 0 1px 1px rgba(255,255,255,0.25)"
+              }}
+              style={{ position: "absolute", inset: 0, zIndex: 0 }} 
+            />
+            <div style={{ transform: "translateX(2px)", position: "relative", zIndex: 2 }}>
+              {isPlayingVoice ? "⏸" : "▶"}
+            </div>
           </motion.button>
         </motion.div>
 
@@ -506,7 +728,7 @@ export default function App() {
         >
           {/* Particle sphere */}
           <div style={{ marginBottom: 30, cursor: 'pointer' }} onClick={() => openSection("brain")}>
-            <ParticleSphere size={350} />
+            <ParticleSphere size={350} isSpeaking={isPlayingVoice} analyserNodeRef={analyserRef} />
           </div>
 
           {/* Glass frame — Glass Dock liquid glass style */}
@@ -529,10 +751,19 @@ export default function App() {
               flexShrink: 0,
               opacity: mounted ? undefined : 0,
               zIndex: 10,
+              willChange: "transform",
             }}
           >
             <GlassDock
               borderRadius={20}
+              disableEdge={true}
+              overlayStyle={{
+                background: `
+                  linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 35%),
+                  radial-gradient(100% 80% at 50% -20%, rgba(160,50,255,0.12) 0%, transparent 60%)
+                `,
+                boxShadow: "inset 0 1px 1px rgba(255,255,255,0.25)"
+              }}
               style={{
                 position: "absolute",
                 inset: 0,
@@ -639,6 +870,7 @@ export default function App() {
                     height: 52,
                     zIndex: 6,
                     transformOrigin: "top center",
+                    willChange: "transform",
                   }}
                 >
                   <div
@@ -651,6 +883,14 @@ export default function App() {
                   >
                     <GlassDock
                       borderRadius={16}
+                      disableEdge={true}
+                      overlayStyle={{
+                        background: `
+                          linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 35%),
+                          radial-gradient(100% 80% at 50% -20%, rgba(160,50,255,0.12) 0%, transparent 60%)
+                        `,
+                        boxShadow: "inset 0 1px 1px rgba(255,255,255,0.25), inset 0 10px 20px rgba(160,50,255,0.02)"
+                      }}
                       style={{
                         position: "absolute",
                         inset: 0,
@@ -695,14 +935,25 @@ export default function App() {
                     alignItems: "center",
                     justifyContent: "center",
                     flexShrink: 0,
-                    background: "rgba(160, 160, 160, 0.08)",
-                    border: "1px solid rgba(160, 160, 160, 0.4)",
+                    background: "transparent",
+                    border: "none",
                     color: "rgba(220, 220, 220, 0.9)",
                     zIndex: 5,
                     transformOrigin: "center left",
+                    position: "relative",
+                    overflow: "hidden",
                   }}
                 >
-                  <span style={{ fontSize: 18, transform: "translateX(2px)" }}>
+                  <GlassDock 
+                    borderRadius={26} 
+                    disableEdge={true} 
+                    overlayStyle={{
+                      background: "linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 35%), radial-gradient(100% 80% at 50% -20%, rgba(160,50,255,0.12) 0%, transparent 60%)",
+                      boxShadow: "inset 0 1px 1px rgba(255,255,255,0.25)"
+                    }}
+                    style={{ position: "absolute", inset: 0, zIndex: 0 }} 
+                  />
+                  <span style={{ fontSize: 18, transform: "translateX(2px)", position: "relative", zIndex: 2 }}>
                     ➤
                   </span>
                 </motion.button>
@@ -723,71 +974,56 @@ export default function App() {
         />
 
         {/* Sections Overlay */}
-        <AnimatePresence mode="wait">
-          {section && (
-            <motion.div
-              key={section}
-              className="motion-gpu"
-              initial={{ opacity: 0, scale: 0.98, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.98, y: -10 }}
-              transition={{
-                type: "spring",
-                stiffness: 500,
-                damping: 35,
-                mass: 0.5,
-              }}
-              style={{
-                position: "fixed",
-                inset: 0,
-                zIndex: 400,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                pointerEvents: "auto",
-              }}
-            >
-              {section === "memory" && (
-                <MemorySection
-                  onClose={closeSection}
-                  onSound={playSound}
-                  language={language}
-                />
-              )}
-              {section === "settings" && (
-                <SettingsSection
-                  onClose={closeSection}
-                  onSound={playSound}
-                  soundEnabled={soundEnabled}
-                  onSoundToggle={setSoundEnabled}
-                  language={language}
-                  onLanguageChange={(l: "EN" | "RU" | "UK") => setLanguage(l)}
-                />
-              )}
-              {section === "reminder" && (
-                <ReminderSection onClose={closeSection} onSound={playSound} />
-              )}
-              {section === "plugins" && (
-                <PluginsSection onClose={closeSection} onSound={playSound} />
-              )}
-              {section === "commands" && (
-                <CommandsSection onClose={closeSection} onSound={playSound} />
-              )}
-              {section === "addcommands" && (
-                <AddCommandsSection
-                  onClose={closeSection}
-                  onSound={playSound}
-                />
-              )}
-              {section === "people" && (
-                <PeopleSection onClose={closeSection} onSound={playSound} />
-              )}
-              {section === "brain" && (
-                <Brain onClose={closeSection} />
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <MemorySection
+          open={section === "memory"}
+          onClose={closeSection}
+          onSound={playSound}
+          language={language}
+        />
+        <SettingsSection
+          open={section === "settings"}
+          onClose={closeSection}
+          onSound={playSound}
+          soundEnabled={soundEnabled}
+          onSoundToggle={setSoundEnabled}
+          language={language}
+          onLanguageChange={(l: "EN" | "RU" | "UK") => setLanguage(l)}
+        />
+        <ReminderSection
+          open={section === "reminder"}
+          onClose={closeSection}
+          onSound={playSound}
+        />
+        <PluginsSection
+          open={section === "plugins"}
+          onClose={closeSection}
+          onSound={playSound}
+        />
+        <CommandsSection
+          open={section === "commands"}
+          onClose={closeSection}
+          onSound={playSound}
+        />
+        <AddCommandsSection
+          open={section === "addcommands"}
+          onClose={closeSection}
+          onSound={playSound}
+        />
+        <PeopleSection
+          open={section === "people"}
+          onClose={closeSection}
+          onSound={playSound}
+        />
+        <Brain open={section === "brain"} onClose={closeSection} onSound={playSound} />
+        
+        {/* Hidden file input as fallback for audio playback blocking */}
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          style={{ display: "none" }} 
+          accept="audio/*" 
+          onChange={handleFileSelect} 
+        />
       </div>
     </I18nProvider>
   );

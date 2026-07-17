@@ -1,21 +1,100 @@
 import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "../i18n";
+import { GlassDock } from "./GlassDock";
 
 interface BrainProps {
+  open: boolean;
   onClose?: () => void;
+  onSound?: (type: string) => void;
 }
 
-export function Brain({ onClose }: BrainProps) {
+export function Brain({ open, onClose, onSound }: BrainProps) {
   const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const nodesRef = useRef<Node[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeGroup, setActiveGroup] = useState<number | null>(0);
-  const [searchResults, setSearchResults] = useState<Node[]>([]);
   const [closingGroup, setClosingGroup] = useState<number | null>(null);
   const [nodeCount, setNodeCount] = useState(0);
   const [linkCount, setLinkCount] = useState(0);
+  const [groupNeurons, setGroupNeurons] = useState<{
+    [key: number]: {
+      id: number;
+      title: string;
+      info: string;
+      colorHex: string;
+      colorRgb: string;
+    }[];
+  }>({});
+
+  const [modalNode, setModalNode] = useState<{
+    title: string;
+    info: string;
+    colorHex: string;
+    colorRgb: string;
+  } | null>(null);
+  const [typedTitle, setTypedTitle] = useState("");
+  const [typedBody, setTypedBody] = useState("");
+  const [sepFull, setSepFull] = useState(false);
+  const typingTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  function typeText(
+    text: string,
+    speed: number,
+    setter: (v: string) => void,
+    onComplete?: () => void,
+  ) {
+    let i = 0;
+    setter("");
+    function step() {
+      if (i < text.length) {
+        i++;
+        setter(text.slice(0, i));
+        typingTimeoutsRef.current.push(setTimeout(step, speed + Math.random() * 30));
+      } else {
+        onComplete?.();
+      }
+    }
+    step();
+  }
+
+  function openNodeModal(node: {
+    title: string;
+    info: string;
+    colorHex: string;
+    colorRgb: string;
+  }) {
+    typingTimeoutsRef.current.forEach(clearTimeout);
+    typingTimeoutsRef.current = [];
+    setTypedTitle("");
+    setTypedBody("");
+    setSepFull(false);
+    setModalNode(node);
+
+    typingTimeoutsRef.current.push(
+      setTimeout(() => {
+        setSepFull(true);
+        typeText(node.title, 30, setTypedTitle, () => {
+          typeText(node.info, 15, setTypedBody);
+        });
+      }, 300),
+    );
+  }
+
+  function closeNodeModal() {
+    typingTimeoutsRef.current.forEach(clearTimeout);
+    typingTimeoutsRef.current = [];
+    setModalNode(null);
+  }
+
+  useEffect(() => {
+    if (!open) closeNodeModal();
+  }, [open]);
+
+  useEffect(() => {
+    return () => typingTimeoutsRef.current.forEach(clearTimeout);
+  }, []);
 
   const NAMES = [
     [t("brain.name1"), t("brain.name2"), t("brain.name3")],
@@ -49,6 +128,21 @@ export function Brain({ onClose }: BrainProps) {
     },
   ];
 
+  const openRef = useRef(open);
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
+
+  const onSoundRef = useRef(onSound);
+  useEffect(() => {
+    onSoundRef.current = onSound;
+  }, [onSound]);
+
+  const searchQueryRef = useRef(searchQuery);
+  useEffect(() => {
+    searchQueryRef.current = searchQuery;
+  }, [searchQuery]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -64,6 +158,7 @@ export function Brain({ onClose }: BrainProps) {
     let draggedNode: Node | null = null;
     let hoveredNode: Node | null = null;
     let hoverStartTime = 0;
+    let rafId = 0;
 
     let mouse = { x: 0, y: 0 };
 
@@ -76,7 +171,6 @@ export function Brain({ onClose }: BrainProps) {
     let clickStartX = 0,
       clickStartY = 0,
       clickStartTime = 0;
-    let searchQuery = "";
 
     const CLUSTER_CENTERS = [
       { x: -180, y: 20, z: 120 },
@@ -251,6 +345,10 @@ export function Brain({ onClose }: BrainProps) {
       draw() {
         if (this.depth < -FOV + 50) return;
 
+        const query = searchQueryRef.current.trim().toLowerCase();
+        const hasQuery = query.length > 0;
+        const matchesSearch = !hasQuery || this.title.toLowerCase().includes(query);
+
         const baseSize = this.size + Math.sin(this.pulse) * 0.6;
         const isActive = this === draggedNode;
         const isHover = this === hoveredNode;
@@ -258,8 +356,12 @@ export function Brain({ onClose }: BrainProps) {
         let scaleMultiplier = 1;
         if (isActive) scaleMultiplier = 2.0;
         else if (isHover) scaleMultiplier = 1.5;
+        else if (hasQuery && matchesSearch) scaleMultiplier = 1.3;
 
         const currentSize = baseSize * scaleMultiplier * this.scale;
+
+        ctx!.save();
+        ctx!.globalAlpha = hasQuery && !matchesSearch ? 0.12 : 1;
 
         if (isActive) {
           ctx!.beginPath();
@@ -294,10 +396,20 @@ export function Brain({ onClose }: BrainProps) {
           ctx!.fill();
         }
 
+        if (hasQuery && matchesSearch && !isActive) {
+          ctx!.beginPath();
+          ctx!.arc(this.screenX, this.screenY, currentSize + 3, 0, Math.PI * 2);
+          ctx!.strokeStyle = "#ffffff";
+          ctx!.lineWidth = 1.5;
+          ctx!.stroke();
+        }
+
         ctx!.beginPath();
         ctx!.arc(this.screenX, this.screenY, currentSize, 0, Math.PI * 2);
         ctx!.fillStyle = isActive ? "#ffffff" : this.colorHex;
         ctx!.fill();
+
+        ctx!.restore();
       }
     }
 
@@ -375,9 +487,32 @@ export function Brain({ onClose }: BrainProps) {
         }
       }
 
-      // Update counters
+      // Update counters and group neurons
       setNodeCount(nodes.length);
       setLinkCount(links.length);
+
+      // Group neurons by groupId for submenu display (id + real title + info)
+      const grouped: {
+        [key: number]: {
+          id: number;
+          title: string;
+          info: string;
+          colorHex: string;
+          colorRgb: string;
+        }[];
+      } = { 0: [], 1: [], 2: [] };
+      nodes.forEach((node) => {
+        if (grouped[node.groupId]) {
+          grouped[node.groupId].push({
+            id: node.id,
+            title: node.title,
+            info: node.info,
+            colorHex: node.colorHex,
+            colorRgb: node.colorRgb,
+          });
+        }
+      });
+      setGroupNeurons(grouped);
     }
 
     function applyForces() {
@@ -508,6 +643,11 @@ export function Brain({ onClose }: BrainProps) {
     }
 
     function animate() {
+      if (!openRef.current) {
+        rafId = requestAnimationFrame(animate);
+        return;
+      }
+
       ctx!.clearRect(0, 0, width, height);
 
       applyForces();
@@ -538,7 +678,7 @@ export function Brain({ onClose }: BrainProps) {
         drawHoverText(hoveredNode, performance.now() - hoverStartTime);
       }
 
-      requestAnimationFrame(animate);
+      rafId = requestAnimationFrame(animate);
     }
 
     function getNodeAt(x: number, y: number): Node | null {
@@ -555,9 +695,9 @@ export function Brain({ onClose }: BrainProps) {
       return null;
     }
 
-    canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+    const handleContextMenu = (e: MouseEvent) => e.preventDefault();
 
-    canvas.addEventListener("mousedown", (e) => {
+    const handleMouseDown = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
       mouse.x = e.clientX - rect.left;
       mouse.y = e.clientY - rect.top;
@@ -581,9 +721,9 @@ export function Brain({ onClose }: BrainProps) {
         draggedNode = node;
         canvas.style.cursor = "grabbing";
       }
-    });
+    };
 
-    canvas.addEventListener("mousemove", (e) => {
+    const handleMouseMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
       mouse.x = e.clientX - rect.left;
       mouse.y = e.clientY - rect.top;
@@ -609,13 +749,16 @@ export function Brain({ onClose }: BrainProps) {
         const newNode = getNodeAt(mouse.x, mouse.y);
         if (newNode !== hoveredNode) {
           hoveredNode = newNode;
-          if (newNode) hoverStartTime = performance.now();
+          if (newNode) {
+            hoverStartTime = performance.now();
+            onSoundRef.current?.("click-5-clowse");
+          }
         }
         canvas.style.cursor = hoveredNode ? "grab" : "default";
       }
-    });
+    };
 
-    window.addEventListener("mouseup", (e) => {
+    const handleMouseUp = (e: MouseEvent) => {
       if (e.button === 1 || e.button === 2) {
         isMiddleDown = false;
         canvas.style.cursor = hoveredNode ? "grab" : "default";
@@ -626,50 +769,69 @@ export function Brain({ onClose }: BrainProps) {
           const distMoved = Math.hypot(mouse.x - clickStartX, mouse.y - clickStartY);
           const timeElapsed = performance.now() - clickStartTime;
           if (distMoved < 10 && timeElapsed < 300) {
-            console.log("Node clicked:", draggedNode.title);
+            onSoundRef.current?.("click-6-mode");
+            openNodeModal({
+              title: draggedNode.title,
+              info: draggedNode.info,
+              colorHex: draggedNode.colorHex,
+              colorRgb: draggedNode.colorRgb,
+            });
           }
         }
         isLeftDown = false;
         draggedNode = null;
         canvas.style.cursor = hoveredNode ? "grab" : "default";
       }
-    });
+    };
 
-    canvas.addEventListener("mouseleave", () => {
+    const handleMouseLeave = () => {
       isLeftDown = false;
       isMiddleDown = false;
       draggedNode = null;
       hoveredNode = null;
-    });
+    };
 
-    canvas.addEventListener(
-      "wheel",
-      (e) => {
-        e.preventDefault();
-        const zoomSpeed = 0.0015;
-        camera.zoom -= e.deltaY * zoomSpeed;
-        camera.zoom = Math.max(0.3, Math.min(camera.zoom, 4.0));
-      },
-      { passive: false }
-    );
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const zoomSpeed = 0.0015;
+      camera.zoom -= e.deltaY * zoomSpeed;
+      camera.zoom = Math.max(0.3, Math.min(camera.zoom, 4.0));
+    };
 
-    window.addEventListener("resize", () => {
+    const handleResize = () => {
       resize();
       createGraph();
-    });
+    };
+
+    canvas.addEventListener("contextmenu", handleContextMenu);
+    canvas.addEventListener("mousedown", handleMouseDown);
+    canvas.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    canvas.addEventListener("mouseleave", handleMouseLeave);
+    canvas.addEventListener("wheel", handleWheel, { passive: false });
+    window.addEventListener("resize", handleResize);
 
     resize();
     createGraph();
-    requestAnimationFrame(animate);
+    rafId = requestAnimationFrame(animate);
 
     return () => {
-      window.removeEventListener("mouseup", () => {});
-      window.removeEventListener("resize", () => {});
+      canvas.removeEventListener("contextmenu", handleContextMenu);
+      canvas.removeEventListener("mousedown", handleMouseDown);
+      canvas.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      canvas.removeEventListener("mouseleave", handleMouseLeave);
+      canvas.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("resize", handleResize);
+      cancelAnimationFrame(rafId);
     };
   }, []);
 
   return (
-    <div
+    <motion.div
+      initial={false}
+      animate={{ opacity: open ? 1 : 0 }}
+      transition={{ duration: 0.4, ease: "easeInOut" }}
       ref={containerRef}
       style={{
         position: "fixed",
@@ -678,44 +840,11 @@ export function Brain({ onClose }: BrainProps) {
         width: "100vw",
         height: "100vh",
         background: "radial-gradient(circle at 50% 50%, #111 0%, #050505 100%)",
-        zIndex: 0,
+        zIndex: 400,
         display: "flex",
+        pointerEvents: open ? "auto" : "none",
       }}
     >
-      {onClose && (
-        <button
-          onClick={onClose}
-          style={{
-            position: "absolute",
-            top: 20,
-            right: 20,
-            zIndex: 100,
-            background: "rgba(255, 255, 255, 0.1)",
-            border: "1px solid rgba(255, 255, 255, 0.2)",
-            borderRadius: "50%",
-            width: 44,
-            height: 44,
-            color: "rgba(255, 255, 255, 0.8)",
-            fontSize: 24,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            transition: "all 0.2s",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgba(255, 255, 255, 0.2)";
-            e.currentTarget.style.color = "#fff";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-            e.currentTarget.style.color = "rgba(255, 255, 255, 0.8)";
-          }}
-        >
-          ✕
-        </button>
-      )}
-      
       {/* Sidebar */}
       <aside
         style={{
@@ -733,8 +862,42 @@ export function Brain({ onClose }: BrainProps) {
           overflowY: "auto",
           overflowX: "hidden",
           flexShrink: 0,
+          position: "relative",
         }}
       >
+        {onClose && (
+          <button
+            onClick={onClose}
+            style={{
+              position: "absolute",
+              top: 20,
+              right: 16,
+              zIndex: 20,
+              background: "rgba(255, 255, 255, 0.1)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+              borderRadius: "50%",
+              width: 40,
+              height: 40,
+              color: "rgba(255, 255, 255, 0.8)",
+              fontSize: 22,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.2)";
+              e.currentTarget.style.color = "#fff";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+              e.currentTarget.style.color = "rgba(255, 255, 255, 0.8)";
+            }}
+          >
+            ✕
+          </button>
+        )}
         <div
           style={{
             display: "flex",
@@ -769,18 +932,7 @@ export function Brain({ onClose }: BrainProps) {
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              // Filter nodes based on search query
-              if (e.target.value) {
-                const filtered = nodesRef.current.filter((node: Node) => 
-                  node.title.toLowerCase().includes(e.target.value.toLowerCase())
-                );
-                setSearchResults(filtered);
-              } else {
-                setSearchResults([]);
-              }
-            }}
+            onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t("brain.searchPlaceholder")}
             style={{
               background: "rgba(38, 38, 38, 0.6)",
@@ -840,9 +992,10 @@ export function Brain({ onClose }: BrainProps) {
             { id: 1, title: t("brain.groupMartin"), rgb: "6, 182, 212" },
             { id: 2, title: t("brain.groupSystem"), rgb: "244, 63, 94" },
           ].map((group) => (
-            <div key={group.id} style={{ display: "flex", flexDirection: "column" }}>
+            <div key={group.id} style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
               <div
                 onClick={() => {
+                  onSound?.("click-4");
                   if (activeGroup === group.id) {
                     setClosingGroup(group.id);
                     setTimeout(() => {
@@ -891,7 +1044,6 @@ export function Brain({ onClose }: BrainProps) {
               </div>
               {(activeGroup === group.id || closingGroup === group.id) && (
                 <div
-                  className="brain-submenu"
                   style={{
                     paddingLeft: 28,
                     display: "flex",
@@ -899,28 +1051,26 @@ export function Brain({ onClose }: BrainProps) {
                     gap: 4,
                     marginTop: 6,
                     marginBottom: 8,
+                    maxHeight: 280,
+                    overflowY: "auto",
+                    flexShrink: 0,
                   }}
                 >
-                  {[1, 2, 3, 4, 5].map((i, index) => (
+                  {(groupNeurons[group.id] || [])
+                    .filter((neuron) =>
+                      searchQuery.trim()
+                        ? neuron.title.toLowerCase().includes(searchQuery.trim().toLowerCase())
+                        : true,
+                    )
+                    .map((neuron) => (
                     <div
-                      key={i}
-                      className={`brain-submenu-item ${closingGroup === group.id ? 'closing' : ''}`}
-                      style={{
-                        padding: "8px 12px",
-                        fontSize: 13,
-                        color: "#a3a3a3",
-                        cursor: "pointer",
-                        transition: "all 0.2s",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontFamily: "monospace",
-                        borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
-                        opacity: closingGroup === group.id ? 1 : 0,
-                        transform: closingGroup === group.id ? "translateX(0)" : "translateX(-10px)",
-                        animationDelay: closingGroup === group.id ? `${(4 - index) * 0.05}s` : `${index * 0.05}s`,
+                      key={neuron.id}
+                      onClick={() => {
+                        onSound?.("click-6-mode");
+                        openNodeModal(neuron);
                       }}
                       onMouseEnter={(e) => {
+                        onSound?.("click-5-clowse");
                         e.currentTarget.style.color = "#e5e5e5";
                         e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
                         e.currentTarget.style.borderRadius = "6px";
@@ -930,8 +1080,23 @@ export function Brain({ onClose }: BrainProps) {
                         e.currentTarget.style.background = "transparent";
                         e.currentTarget.style.borderRadius = "0";
                       }}
+                      style={{
+                        padding: "10px 12px",
+                        fontSize: 13,
+                        color: "#a3a3a3",
+                        cursor: "pointer",
+                        transition: "background 0.2s, color 0.2s",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        fontFamily: "monospace",
+                        borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
+                        flexShrink: 0,
+                        minHeight: 34,
+                        boxSizing: "border-box",
+                      }}
                     >
-                      {t("brain.node")} {group.id}-{i}
+                      {neuron.title}
                     </div>
                   ))}
                 </div>
@@ -953,7 +1118,7 @@ export function Brain({ onClose }: BrainProps) {
         style={{
           position: "absolute",
           top: 20,
-          left: "1250px",
+          right: 20,
           display: "flex",
           gap: 24,
           background: "rgba(20, 20, 20, 0.5)",
@@ -1009,6 +1174,110 @@ export function Brain({ onClose }: BrainProps) {
           </div>
         </div>
       </div>
-    </div>
+
+      <AnimatePresence>
+        {modalNode && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={closeNodeModal}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0, 0, 0, 0.6)",
+              backdropFilter: "blur(8px)",
+              zIndex: 500,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              paddingLeft: 500,
+            }}
+          >
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              initial={{ scale: 0.95, y: 10, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 10, opacity: 0 }}
+              transition={{ duration: 0.35, ease: [0.175, 0.885, 0.32, 1.275] }}
+              style={{
+                padding: 40,
+                width: 450,
+                position: "relative",
+              }}
+            >
+              <GlassDock 
+                borderRadius={16} 
+                disableEdge={true} 
+                overlayStyle={{
+                  background: `
+                    linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 35%),
+                    radial-gradient(ellipse at 50% -20%, rgba(${modalNode.colorRgb}, 0.2) 0%, transparent 60%)
+                  `,
+                  boxShadow: `inset 0 1px 1px rgba(255,255,255,0.25), inset 0 10px 30px rgba(${modalNode.colorRgb}, 0.05), 0 0 30px rgba(${modalNode.colorRgb}, 0.15)`
+                }}
+                style={{ position: "absolute", inset: 0, zIndex: 0 }} 
+              />
+              <div style={{ position: "relative", zIndex: 2 }}>
+                <button
+                  onClick={closeNodeModal}
+                  style={{
+                    position: "absolute",
+                    top: -24,
+                    right: -20,
+                    background: "none",
+                    border: "none",
+                    color: "rgba(163,163,163,0.8)",
+                    fontSize: 28,
+                    cursor: "pointer",
+                    lineHeight: 1,
+                    transition: "color 0.2s",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(163,163,163,0.8)")}
+                >
+                  ×
+                </button>
+                <div
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 600,
+                    color: modalNode.colorHex,
+                    textShadow: `0 0 12px rgba(${modalNode.colorRgb}, 0.6)`,
+                    marginBottom: 16,
+                    minHeight: 28,
+                    fontFamily: "monospace",
+                  }}
+                >
+                  {typedTitle}
+                </div>
+                <div
+                  style={{
+                    height: 1,
+                    background: `linear-gradient(90deg, rgba(${modalNode.colorRgb}, 0.8), transparent)`,
+                    boxShadow: `0 0 10px rgba(${modalNode.colorRgb}, 0.5)`,
+                    marginBottom: 24,
+                    width: sepFull ? "100%" : "0%",
+                    transition: "width 0.8s cubic-bezier(0.22, 1, 0.36, 1)",
+                  }}
+                />
+                <div
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: 15,
+                    color: "#a3a3a3",
+                    lineHeight: 1.6,
+                    whiteSpace: "pre-wrap",
+                    minHeight: 80,
+                  }}
+                >
+                  {typedBody}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }

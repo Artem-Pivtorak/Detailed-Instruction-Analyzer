@@ -3,6 +3,8 @@ import { useEffect, useRef } from "react";
 interface ParticleSphereProps {
   size?: number;
   canvasSize?: number;
+  isSpeaking?: boolean;
+  analyserNodeRef?: React.RefObject<AnalyserNode | null>;
 }
 
 function rotateX(x: number, y: number, z: number, a: number): [number, number, number] {
@@ -28,9 +30,14 @@ function dot3(ax: number, ay: number, az: number, bx: number, by: number, bz: nu
   return ax * bx + ay * by + az * bz;
 }
 
-export function ParticleSphere({ size = 270, canvasSize = 1000 }: ParticleSphereProps) {
+export function ParticleSphere({ size = 270, canvasSize = 1000, isSpeaking = false, analyserNodeRef }: ParticleSphereProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
+  const isSpeakingRef = useRef(isSpeaking);
+
+  useEffect(() => {
+    isSpeakingRef.current = isSpeaking;
+  }, [isSpeaking]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -82,6 +89,8 @@ export function ParticleSphere({ size = 270, canvasSize = 1000 }: ParticleSphere
     let rxA = 0, ryA = 0, rzA = 0;
     let t = 0;
     let speedPhase = Math.random() * Math.PI * 2;
+    let speechEnv = 0;
+    let dataArray: Uint8Array | null = null;
     const startTime = performance.now();
 
     // Pre-allocate projected array
@@ -90,6 +99,35 @@ export function ParticleSphere({ size = 270, canvasSize = 1000 }: ParticleSphere
 
     function draw() {
       ctx!.clearRect(0, 0, canvasSize, canvasSize);
+
+      const targetEnv = isSpeakingRef.current ? 1.0 : 0.0;
+      speechEnv += (targetEnv - speechEnv) * 0.1;
+
+      let vol = 0;
+      let activeEnv = speechEnv;
+      let extraBass = 0;
+
+      if (analyserNodeRef?.current) {
+        if (!dataArray || dataArray.length !== analyserNodeRef.current.frequencyBinCount) {
+          dataArray = new Uint8Array(analyserNodeRef.current.frequencyBinCount);
+        }
+        analyserNodeRef.current.getByteFrequencyData(dataArray as any);
+        
+        let sum = 0;
+        let bassSum = 0;
+        const len = dataArray.length;
+        for (let k = 0; k < len; k++) {
+          sum += dataArray[k];
+          if (k < 15) bassSum += dataArray[k]; // first 15 bins are bass frequencies
+        }
+        vol = sum / len / 255.0;
+        let bassVol = bassSum / Math.min(15, len) / 255.0;
+        
+        if (isSpeakingRef.current) {
+          activeEnv = Math.min(1.2, vol * 2.5); // scaled up to make visually striking
+          extraBass = Math.min(1.5, bassVol * 2.0);
+        }
+      }
 
       const now = performance.now();
       const elapsed = (now - startTime) / 1000;
@@ -101,21 +139,21 @@ export function ParticleSphere({ size = 270, canvasSize = 1000 }: ParticleSphere
 
       speedPhase += 0.004;
       const rawSpeed = 1.0 + 0.45 * Math.sin(speedPhase * 0.32) + 0.22 * Math.sin(speedPhase * 0.68 + 1.0) + 0.08 * Math.sin(speedPhase * 1.28 - 0.5);
-      const speedMod = Math.max(0.4, Math.min(1.5, rawSpeed));
+      const speedMod = Math.max(0.4, Math.min(1.5, rawSpeed)) + activeEnv * 0.5 + extraBass * 0.2; // faster when speaking
       t += 0.004 * speedMod;
       rxA += 0.00012 * speedMod;
       ryA += 0.00018 * speedMod;
-      rzA += 0.00005 * speedMod;
+      rzA += (0.00005 * speedMod) + (activeEnv * 0.0003 * Math.sin(t * 10)); // wiggle
 
-      if (Math.random() < 0.006) {
-        spawnRipple(t, { amplitude: 0.22 + Math.random() * 0.18, speed: 0.016 + Math.random() * 0.012, freq: 4.5 + Math.random() * 3.5, sigma: 0.18 + Math.random() * 0.18 });
+      if (Math.random() < 0.006 + activeEnv * 0.02 + extraBass * 0.04) { // more ripples when speaking
+        spawnRipple(t, { amplitude: 0.22 + Math.random() * 0.18 + activeEnv * 0.1 + extraBass * 0.15, speed: 0.016 + Math.random() * 0.012 + activeEnv * 0.02, freq: 4.5 + Math.random() * 3.5, sigma: 0.18 + Math.random() * 0.18 });
       }
       for (let i = ripples.length - 1; i >= 0; i--) {
         if ((t - ripples[i].t0) * ripples[i].speed > Math.PI + 1.6) ripples.splice(i, 1);
       }
       while (ripples.length < MAX_RIPPLES) spawnRipple(t);
 
-      const breathe = 0.05 * Math.sin(t * 0.38) + 0.025 * Math.sin(t * 0.62);
+      const breathe = 0.05 * Math.sin(t * 0.38) + 0.025 * Math.sin(t * 0.62) + activeEnv * 0.1 * Math.sin(t * 8.0) + extraBass * 0.15 * Math.sin(t * 12.0); // vibrate
 
       for (let i = 0; i < COUNT; i++) {
         const p = pts[i];
@@ -131,15 +169,40 @@ export function ParticleSphere({ size = 270, canvasSize = 1000 }: ParticleSphere
           const fade = Math.pow(Math.sin(Math.min(Math.max(wavefront, 0), Math.PI)), 0.55);
           totalDisp += rip.amplitude * rippleOsc * env * fade;
         }
-        const disp = Math.max(0.7, Math.min(1.3, 1.0 + totalDisp));
+        
+        let disp = Math.max(0.7, Math.min(1.3, 1.0 + totalDisp));
+        
+        // Give each particle a unique "signature" based on its normal coordinates
+        const signature = p.nx * 21.34 + p.ny * 34.12 + p.nz * 13.45;
+
+        // Strict rhythmic snapping instead of smooth waves
+        let voicePush = 0;
+        
+        if (dataArray && vol > 0.002) { 
+            // Real audio rhythm! Map particle into frequency bins (lower 60% for most action)
+            const idx = Math.abs(Math.floor(signature * 7123)) % Math.floor(dataArray.length * 0.6);
+            let val = dataArray[idx] / 255.0;
+            // Square/Cube it to make it sharp and completely remove the "smooth fly/fall wave"
+            val = val * val * val; 
+            voicePush = activeEnv * 0.85 * val;
+        } else if (isSpeakingRef.current) {
+            // Dummy fallback rhythmic snap (sharp pop, no smooth wave)
+            const wave = Math.sin(t * 22.0 + signature * 15.0);
+            const sharpWave = wave > 0.85 ? Math.pow((wave - 0.85) * 6.66, 2.0) : 0;
+            voicePush = activeEnv * 0.4 * sharpWave;
+        }
+        
+        disp += voicePush;
+
         let px = p.nx * disp * R;
         let py = p.ny * disp * R;
         let pz = p.nz * disp * R;
+        
         [px, py, pz] = rotateX(px, py, pz, rxA);
         [px, py, pz] = rotateY(px, py, pz, ryA);
         [px, py, pz] = rotateZ(px, py, pz, rzA);
-        const waveAmpBase = 0.03;
-        const waveSpeed = 1.0 + 0.8 * Math.sin(t * 0.6 + p.nx * 0.9);
+        const waveAmpBase = 0.03 + activeEnv * 0.02 + extraBass * 0.02;
+        const waveSpeed = 1.0 + 0.8 * Math.sin(t * 0.6 + p.nx * 0.9) * (1 + activeEnv * 0.5);
         px += waveAmpBase * Math.sin(p.ny * 4.0 + t * waveSpeed + p.nz * 1.2) * R;
         py += waveAmpBase * Math.cos(p.nx * 3.5 + t * (waveSpeed * 0.9) - p.nz * 1.0) * R;
 
@@ -161,10 +224,18 @@ export function ParticleSphere({ size = 270, canvasSize = 1000 }: ParticleSphere
         else if (blend < 0.52) { const f = (blend - 0.28) / 0.24; cr = 105 + f * 120; cg = 13 - f * 8; cb = 235 - f * 60; }
         else if (blend < 0.76) { const f = (blend - 0.52) / 0.24; cr = 225 + f * 25; cg = 5 + f * 58; cb = 175 - f * 95; }
         else { const f = (blend - 0.76) / 0.24; cr = 250 + f * 5; cg = 63 + f * 140; cb = 80 - f * 30; }
-        const shade = 0.15 + df * 0.85;
-        const alpha = (0.2 + df * 0.8) * easeOut; // Fade in during intro
-        const dotPulse = 1 + 0.03 * Math.sin(t * 4.0 + i);
-        const dotR = (0.6 + df * 1.28) * (size / 270) * dotPulse;
+        
+        // Neon bump when speaking
+        cr = Math.min(255, cr + cr * activeEnv * 0.15 + extraBass * 15);
+        cg = Math.min(255, cg + cg * activeEnv * 0.15 + extraBass * 5);
+        cb = Math.min(255, cb + cb * activeEnv * 0.15 + extraBass * 25);
+
+        const shade = 0.15 + df * 0.85 + activeEnv * 0.1; // Less aggressive global brightness
+        const alpha = (0.2 + df * 0.8) * easeOut; // Don't boost global static alpha, it floods the background
+        
+        // Pulses affect the size of the dots cleanly
+        const dotPulse = 1 + 0.03 * Math.sin(t * 4.0 + i) + activeEnv * 0.4 * Math.max(0, Math.sin(t * 8.0 + (p.ny * 10)));
+        const dotR = (0.6 + df * 1.28) * (size / 270) * dotPulse * (1 + extraBass * 0.15);
         const proj = projected[i];
         proj.sx = sx; proj.sy = sy; proj.sz = pz;
         proj.cr = (cr * shade) | 0; proj.cg = (cg * shade) | 0; proj.cb = (cb * shade) | 0;
@@ -176,26 +247,36 @@ export function ParticleSphere({ size = 270, canvasSize = 1000 }: ParticleSphere
       const c = ctx!;
       for (let i = 0; i < COUNT; i++) {
         const p = projected[i];
-        const glowRadius = p.dr * 4;
+        // Smaller glow expansion to retain dot clarity
+        const glowRadius = p.dr * (4.0 + activeEnv * 0.5); 
         const gradient = c.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, glowRadius);
-        gradient.addColorStop(0, `rgba(${p.cr},${p.cg},${p.cb},${Math.min(1, p.ca * 1.5).toFixed(2)})`);
-        gradient.addColorStop(0.2, `rgba(${p.cr},${p.cg},${p.cb},${(p.ca * 0.8).toFixed(2)})`);
-        gradient.addColorStop(0.5, `rgba(${p.cr},${p.cg},${p.cb},${(p.ca * 0.3).toFixed(2)})`);
+        
+        // Shrink the background glow presence during speeches so dots stand out
+        const glowOpacityMult = 1.0 - activeEnv * 0.3; 
+
+        gradient.addColorStop(0, `rgba(${p.cr},${p.cg},${p.cb},${Math.min(1, p.ca * 1.5 * glowOpacityMult).toFixed(2)})`);
+        gradient.addColorStop(0.2, `rgba(${p.cr},${p.cg},${p.cb},${(p.ca * 0.8 * glowOpacityMult).toFixed(2)})`);
+        gradient.addColorStop(0.5, `rgba(${p.cr},${p.cg},${p.cb},${(p.ca * 0.3 * glowOpacityMult).toFixed(2)})`);
         gradient.addColorStop(1, `rgba(${p.cr},${p.cg},${p.cb},0)`);
         c.beginPath();
         c.arc(p.sx, p.sy, glowRadius, 0, 6.2832);
         c.fillStyle = gradient;
         c.fill();
+        
         c.beginPath();
         c.arc(p.sx, p.sy, p.dr * 1.2, 0, 6.2832);
-        c.fillStyle = `rgba(${Math.min(255, p.cr + 50)},${Math.min(255, p.cg + 50)},${Math.min(255, p.cb + 50)},${Math.min(1, p.ca * 1.3).toFixed(2)})`;
+        // Make the core explicitly brighter and intensely opaque when speaking
+        const coreR = Math.min(255, p.cr + 50 + activeEnv * 120);
+        const coreG = Math.min(255, p.cg + 50 + activeEnv * 120);
+        const coreB = Math.min(255, p.cb + 50 + activeEnv * 120);
+        c.fillStyle = `rgba(${coreR},${coreG},${coreB},${Math.min(1, p.ca * 1.3 + activeEnv * 0.6).toFixed(2)})`;
         c.fill();
       }
 
       const g = c.createRadialGradient(cx, cy, R * 0.55, cx, cy, R * 1.45);
-      g.addColorStop(0, "rgba(150,0,210,0.00)");
-      g.addColorStop(0.5, "rgba(110,0,190,0.05)");
-      g.addColorStop(1, "rgba(60,0,150,0.00)");
+      g.addColorStop(0, `rgba(150,0,210,${0.00 + activeEnv * 0.05 + extraBass * 0.05})`);
+      g.addColorStop(0.5, `rgba(110,0,190,${0.05 + activeEnv * 0.1 + extraBass * 0.1})`);
+      g.addColorStop(1, `rgba(60,0,150,0.00)`);
       c.beginPath();
       c.arc(cx, cy, R * 1.45, 0, 6.2832);
       c.fillStyle = g;
@@ -206,7 +287,7 @@ export function ParticleSphere({ size = 270, canvasSize = 1000 }: ParticleSphere
 
     draw();
     return () => cancelAnimationFrame(animRef.current);
-  }, [size]);
+  }, [size, canvasSize]);
 
   return (
     <div style={{ width: size, height: size, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -219,3 +300,4 @@ export function ParticleSphere({ size = 270, canvasSize = 1000 }: ParticleSphere
     </div>
   );
 }
+

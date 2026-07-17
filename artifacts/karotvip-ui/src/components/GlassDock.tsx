@@ -19,12 +19,16 @@ interface GlassDockProps {
   borderRadius?: number;
   className?: string;
   style?: CSSProperties;
+  disableEdge?: boolean;
+  overlayStyle?: CSSProperties;
 }
 
 export function GlassDock({
   borderRadius = 16,
   className,
   style,
+  disableEdge = false,
+  overlayStyle,
 }: GlassDockProps) {
   const r = borderRadius;
 
@@ -42,8 +46,8 @@ export function GlassDock({
       }}
     >
       <div className="liquid-glass--bend" style={{ borderRadius: r }} />
-      <div className="liquid-glass--face" style={{ borderRadius: r }} />
-      <div className="liquid-glass--edge" style={{ borderRadius: r }} />
+      <div className="liquid-glass--face" style={{ borderRadius: r, ...overlayStyle }} />
+      {!disableEdge && <div className="liquid-glass--edge" style={{ borderRadius: r }} />}
     </div>
   );
 }

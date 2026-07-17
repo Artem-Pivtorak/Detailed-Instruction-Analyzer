@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "../i18n";
 
 interface MemoryBlock {
@@ -41,30 +42,21 @@ const MEMORY_BLOCKS: MemoryBlock[] = [
 ];
 
 interface MemorySectionProps {
+  open: boolean;
   onClose: () => void;
   onSound: (type: string) => void;
   language?: "EN" | "RU" | "UK";
 }
 
 export function MemorySection({
+  open,
   onClose,
   onSound,
   language: _language = "EN",
 }: MemorySectionProps) {
-  const [visible, setVisible] = useState(false);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [memoryFull, setMemoryFull] = useState(73);
   const { t } = useI18n();
-
-  useEffect(() => {
-    setTimeout(() => setVisible(true), 10);
-  }, []);
-
-  function handleClose() {
-    setVisible(false);
-    onSound("close");
-    setTimeout(onClose, 300);
-  }
 
   function handleDelete() {
     onSound("click");
@@ -77,7 +69,12 @@ export function MemorySection({
   }
 
   return (
-    <div
+    <AnimatePresence>
+      {open && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
       style={{
         position: "fixed",
         inset: 0,
@@ -87,13 +84,15 @@ export function MemorySection({
         justifyContent: "center",
         background: "rgba(0,0,0,0.75)",
         backdropFilter: "blur(48px) saturate(150%)",
-        WebkitBackdropFilter: "blur(48px) saturate(150%)", // Strong blur for the background
+        WebkitBackdropFilter: "blur(48px) saturate(150%)",
       }}
     >
-      <div
-        className="droplet-up"
+      <motion.div
+        initial={{ width: 0, height: 0 }}
+        animate={{ width: 580, height: "auto" }}
+        exit={{ width: 0, height: 0 }}
+        transition={{ duration: 0.4, ease: "easeInOut", times: [0, 0.5, 1] }}
         style={{
-          width: 580,
           background: "#000000",
           border: "none",
           borderRadius: 24,
@@ -101,11 +100,6 @@ export function MemorySection({
           position: "relative",
           boxShadow:
             "0 0 80px rgba(249,115,22,0.3), 0 0 160px rgba(249,115,22,0.15)",
-          transform: visible
-            ? "scale(1) translateY(0)"
-            : "scale(0.9) translateY(20px)",
-          opacity: visible ? 1 : 0,
-          transition: "all 0.35s cubic-bezier(0.22,1,0.36,1)",
           maxHeight: "80vh",
           display: "flex",
           flexDirection: "column",
@@ -113,7 +107,7 @@ export function MemorySection({
       >
         {/* Close button */}
         <button
-          onClick={handleClose}
+          onClick={onClose}
           style={{
             position: "absolute",
             top: 20,
@@ -300,7 +294,9 @@ export function MemorySection({
             {t("memory.unload")}
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

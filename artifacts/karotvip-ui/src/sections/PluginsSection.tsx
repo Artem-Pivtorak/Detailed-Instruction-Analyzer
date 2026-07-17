@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "../i18n";
 
 interface Plugin {
@@ -19,23 +20,15 @@ const PLUGINS: Plugin[] = [
 ];
 
 interface PluginsSectionProps {
+  open: boolean;
   onClose: () => void;
   onSound: (type: string) => void;
 }
 
-export function PluginsSection({ onClose, onSound }: PluginsSectionProps) {
-  const [visible, setVisible] = useState(false);
+export function PluginsSection({ open, onClose, onSound }: PluginsSectionProps) {
   const [plugins, setPlugins] = useState(PLUGINS);
   const [hovered, setHovered] = useState<number | null>(null);
   const { t } = useI18n();
-
-  useEffect(() => { setTimeout(() => setVisible(true), 10); }, []);
-
-  function handleClose() {
-    setVisible(false);
-    onSound("close");
-    setTimeout(onClose, 300);
-  }
 
   function togglePlugin(id: number) {
     onSound("toggle");
@@ -43,30 +36,35 @@ export function PluginsSection({ onClose, onSound }: PluginsSectionProps) {
   }
 
   return (
-    <div style={{
+    <AnimatePresence>
+      {open && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{
       position: "fixed", inset: 0, zIndex: 100,
       display: "flex", alignItems: "center", justifyContent: "center",
       background: "rgba(0,0,0,0.75)", backdropFilter: "blur(48px) saturate(150%)",
       WebkitBackdropFilter: "blur(48px) saturate(150%)",
     }}>
-      <div
-        className="droplet-up"
+      <motion.div
+        initial={{ width: 0, height: 0 }}
+        animate={{ width: 580, height: "auto" }}
+        exit={{ width: 0, height: 0 }}
+        transition={{ duration: 0.4, ease: "easeInOut", times: [0, 0.5, 1] }}
         style={{
-        width: 580,
         background: "#000000",
         border: "2px solid rgba(59,130,246,0.4)",
         borderRadius: 24,
         position: "relative",
         boxShadow: "0 0 80px rgba(59,130,246,0.3), 0 0 160px rgba(59,130,246,0.15)",
-        transform: visible ? "scale(1) translateY(0)" : "scale(0.9) translateY(20px)",
-        opacity: visible ? 1 : 0,
-        transition: "all 0.35s cubic-bezier(0.22,1,0.36,1)",
         maxHeight: "88vh",
         display: "flex",
         flexDirection: "column",
       }}>
         {/* Close */}
-        <button onClick={handleClose} style={{
+        <button onClick={onClose} style={{
           position: "absolute", top: 20, right: 12,
           background: "none", border: "none", color: "rgba(255,255,255,0.5)",
           cursor: "pointer", fontSize: 28, zIndex: 10, lineHeight: 1,
@@ -185,7 +183,9 @@ export function PluginsSection({ onClose, onSound }: PluginsSectionProps) {
           })}
         </div>
 
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
