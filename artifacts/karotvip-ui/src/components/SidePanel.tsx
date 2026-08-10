@@ -75,24 +75,9 @@ interface PluginConfig {
   options: string[];
 }
 
-const LLM_MODELS_MAP: Record<string, string[]> = {
-  CEREBRAS: ["llama3.1-8b"],
-  REQUESTS: [
-    "openai/gpt-4o-mini",
-    "baidu/cobuddy:free",
-    "google/gemma-3-27b-it",
-    "google/gemma-3-4b-it",
-    "google/gemma-4-26b-a4b-it",
-    "google/gemma-4-31b-it",
-  ],
-  GROQ: [
-    "llama-3.1-8b-instant",
-    "llama-3.3-70b-versatile",
-    "meta-llama/llama-4-scout-17b-16e-instruct",
-    "qwen/qwen3-32b",
-  ],
-  "LLAMA-CPP": ["Default Model"],
-};
+// Колишній вигаданий список LLM-моделей видалено — реальні моделі/рушії тепер
+// приходять напряму з window.pywebview.api.get_engine_config() (див. engineConfig нижче в
+// SidePanel) — точно ті самі списки, що й у SettingsSection, а не окремий набір вигаданих тут.
 
 function PluginDropdown({
   plugin,
@@ -337,12 +322,59 @@ export function SidePanel({
 }: SidePanelProps) {
   const { t } = useI18n();
 
-  // Lifted plugin states
-  const [tts, setTts] = useState("ElevenLabs");
-  const [stt, setStt] = useState("Vosk");
-  const [picovoice, setPicovoice] = useState("Picovoice");
-  const [llmEngine, setLlmEngine] = useState("GROQ");
-  const [llmModel, setLlmModel] = useState(LLM_MODELS_MAP["GROQ"][0]);
+  // РЕАЛЬНА конфігурація двигунів з бекенду (те саме джерело правди, що й
+  // SettingsSection: window.pywebview.api.get_engine_config()/set_engine_config()).
+  // Раніше тут було 4 повністю декоративні useState з вигаданими списками (напр.
+  // "Google SR", "Rustpotter", яких у бекенді взагалі не існує) — вибір у цьому
+  // лівому меню візуально мінявся, але НІКУДИ не відправлявся і ні на що не впливав.
+  // TTS тепер перемикається ЖИВО, без перезапуску M.A.R.T.I.N. (див.
+  // gui_set_engine_config/_speak_async у test.py) — обраний тут рушій одразу
+  // озвучує наступну репліку асистента.
+  const [engineConfig, setEngineConfig] = useState<Record<string, { current: string; options: string[] }> | null>(null);
+  const [engineFlash, setEngineFlash] = useState<{ category: string; ok: boolean; live: boolean } | null>(null);
+
+  const fetchEngineConfig = () => {
+    const api = (window as any).pywebview?.api;
+    if (!api?.get_engine_config) return;
+    api
+      .get_engine_config()
+      .then((cfg: any) => setEngineConfig(cfg))
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    if (open) fetchEngineConfig();
+  }, [open]);
+
+  function applyEngineChoice(category: string, value: string) {
+    setEngineConfig((prev) => (prev ? { ...prev, [category]: { ...prev[category], current: value } } : prev));
+    const api = (window as any).pywebview?.api;
+    if (!api?.set_engine_config) {
+      setEngineFlash({ category, ok: false, live: false });
+      return;
+    }
+    api
+      .set_engine_config(category, value)
+      .then((res: { ok: boolean; applied_live?: boolean }) => {
+        setEngineFlash({ category, ok: !!res?.ok, live: !!res?.applied_live });
+        if (res?.ok) onSound("click-4");
+        setTimeout(() => setEngineFlash((f) => (f?.category === category ? null : f)), 2200);
+      })
+      .catch(() => setEngineFlash({ category, ok: false, live: false }));
+  }
+
+  // Дзеркалить llm_chat() у test.py: який ключ моделі показувати залежить від
+  // обраного LLM_ENGINE (той самий словник, що й у SettingsSection).
+  const llmModelKeyFor: Record<string, string | null> = {
+    cerebras: "cerebras_model",
+    groq: "groq_model",
+    gemini: "gemini_model",
+    requests: "openrouter_model",
+    g4f: "g4f_model",
+    "llama-cpp": null,
+  };
+  const currentLlmEngine = engineConfig?.llm_engine?.current;
+  const activeModelKey = currentLlmEngine ? llmModelKeyFor[currentLlmEngine] : null;
 
   useEffect(() => {
     if (!open) return;
@@ -362,46 +394,51 @@ export function SidePanel({
     onClose();
   }
 
+  // Списки опцій та поточне значення тепер беруться НАПРЯМУ з engineConfig (бекенд), а не
+  // вигадуються тут вручну — точно ті самі 4 категорії (tts_engine/stt_engine/
+  // wake_backend/llm_engine), що й у SettingsSection — обидві UI тепер дивляться
+  // на одне й те саме джерело правди і ніколи не розходяться між собою. Поки
+  // engineConfig ще не завантажився (перше відкриття панелі / бекенд ще вантажиться)
+  // — порожній масив, рендер нижче показує замість "завантаження..." замість сітки.
   const pluginsConfig: (PluginConfig & {
     selected: string;
     onSelect: (v: string) => void;
-  })[] = [
-    {
-      id: "elevenlabs",
-      label: "TTS",
-      color: "#00cfff",
-      options: ["ElevenLabs", "Edge", "XTTS"],
-      selected: tts,
-      onSelect: setTts,
-    },
-    {
-      id: "vosk",
-      label: "STT",
-      color: "#a855f7",
-      options: ["Vosk", "Google SR"],
-      selected: stt,
-      onSelect: setStt,
-    },
-    {
-      id: "picovoice",
-      label: "ACT",
-      color: "#22c55e",
-      options: ["Picovoice", "Vosk", "Rustpotter"],
-      selected: picovoice,
-      onSelect: setPicovoice,
-    },
-    {
-      id: "llm_engine",
-      label: "LLM",
-      color: "#f87171",
-      options: Object.keys(LLM_MODELS_MAP),
-      selected: llmEngine,
-      onSelect: (val) => {
-        setLlmEngine(val);
-        setLlmModel(LLM_MODELS_MAP[val][0]);
-      },
-    },
-  ];
+  })[] = engineConfig
+    ? [
+        {
+          id: "tts_engine",
+          label: "TTS",
+          color: "#00cfff",
+          options: engineConfig.tts_engine.options,
+          selected: engineConfig.tts_engine.current,
+          onSelect: (v: string) => applyEngineChoice("tts_engine", v),
+        },
+        {
+          id: "stt_engine",
+          label: "STT",
+          color: "#a855f7",
+          options: engineConfig.stt_engine.options,
+          selected: engineConfig.stt_engine.current,
+          onSelect: (v: string) => applyEngineChoice("stt_engine", v),
+        },
+        {
+          id: "wake_backend",
+          label: "ACT",
+          color: "#22c55e",
+          options: engineConfig.wake_backend.options,
+          selected: engineConfig.wake_backend.current,
+          onSelect: (v: string) => applyEngineChoice("wake_backend", v),
+        },
+        {
+          id: "llm_engine",
+          label: "LLM",
+          color: "#f87171",
+          options: engineConfig.llm_engine.options,
+          selected: engineConfig.llm_engine.current,
+          onSelect: (v: string) => applyEngineChoice("llm_engine", v),
+        },
+      ]
+    : [];
 
   return (
     <>
@@ -449,7 +486,7 @@ export function SidePanel({
               boxShadow: "10px 0 60px rgba(0,0,0,0.8)",
               overflow: "hidden",
               background:
-                "radial-gradient(ellipse at 50% 50%, transparent 20%, rgba(0, 10, 25, 0.15) 70%, rgba(0, 10, 25, 0.3) 100%)",
+                "radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0.75) 20%, rgba(0,0,0,0.92) 70%, rgba(0,0,0,0.97) 100%)",
             }}
           >
             <GlassDock
@@ -551,39 +588,82 @@ export function SidePanel({
                   zIndex: 350,
                 }}
               >
-                {/* First 4: Grid 2x2 */}
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "14px 16px",
-                  }}
-                >
-                  {pluginsConfig.map((p, idx) => (
-                    <PluginDropdown
-                      key={p.id}
-                      plugin={p}
-                      onSound={onSound}
-                      selected={p.selected}
-                      onSelect={p.onSelect}
-                      alignRight={idx % 2 === 1}
-                    />
-                  ))}
-                </div>
+                {!engineConfig ? (
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "rgba(255,255,255,0.35)",
+                      fontFamily: "'RexBold', sans-serif",
+                      letterSpacing: "0.05em",
+                      margin: 0,
+                    }}
+                  >
+                    {t("settings.loadingEngines")}
+                  </p>
+                ) : (
+                  <>
+                    {/* First 4: Grid 2x2 */}
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "14px 16px",
+                      }}
+                    >
+                      {pluginsConfig.map((p, idx) => (
+                        <PluginDropdown
+                          key={p.id}
+                          plugin={p}
+                          onSound={onSound}
+                          selected={p.selected}
+                          onSelect={p.onSelect}
+                          alignRight={idx % 2 === 1}
+                        />
+                      ))}
+                    </div>
 
-                {/* LLM Model: Full width row */}
-                <PluginDropdown
-                  plugin={{
-                    id: "llm_model",
-                    label: "MODEL",
-                    color: "#f87171",
-                    options: LLM_MODELS_MAP[llmEngine],
-                  }}
-                  onSound={onSound}
-                  selected={llmModel}
-                  onSelect={setLlmModel}
-                  fullWidth
-                />
+                    {/* LLM Model: Full width row — тільки якщо для обраного LLM_ENGINE є
+                        окремий список моделей (llama-cpp його не має — див. llmModelKeyFor вище) */}
+                    {activeModelKey && engineConfig[activeModelKey] && (
+                      <PluginDropdown
+                        plugin={{
+                          id: activeModelKey,
+                          label: "MODEL",
+                          color: "#f87171",
+                          options: engineConfig[activeModelKey].options,
+                        }}
+                        onSound={onSound}
+                        selected={engineConfig[activeModelKey].current}
+                        onSelect={(v) => applyEngineChoice(activeModelKey, v)}
+                        fullWidth
+                      />
+                    )}
+
+                    {/* Живий статус останньої зміни рушія — "Застосовано живо" для TTS (не потрібує
+                        перезапуску), інакше — чесно попереджає про потребу в перезапуску (STT/ACT/LLM). */}
+                    {engineFlash && (
+                      <p
+                        style={{
+                          fontSize: 10,
+                          margin: 0,
+                          fontFamily: "'RexBold', sans-serif",
+                          letterSpacing: "0.04em",
+                          color: !engineFlash.ok
+                            ? "#f87171"
+                            : engineFlash.live
+                              ? "#4ade80"
+                              : "rgba(192,132,252,0.7)",
+                        }}
+                      >
+                        {!engineFlash.ok
+                          ? "\u2715 Не вдалося зберегти (бекенд ще не готовий)"
+                          : engineFlash.live
+                            ? "\u2713 Застосовано живо — без перезапуску"
+                          : "\u2713 Збережено — набуде чинності після перезапуску"}
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
 
               {/* Module buttons */}

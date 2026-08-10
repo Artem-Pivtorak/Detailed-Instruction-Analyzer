@@ -68,7 +68,7 @@ export function LiquidGlassAccent({
 
       {/* Gooey drifting highlights — mirrors .liquids (goo-fused shadow + track) */}
       {animated && (
-        <div className="liquid-goo-layer" style={{ borderRadius }}>
+        <div className="liquid-goo-layer" style={{ borderRadius, filter: "url(#liquid-goo)" }}>
           <div
             className="liquid-goo-blob liquid-goo-blob--a"
             style={{ background: color }}

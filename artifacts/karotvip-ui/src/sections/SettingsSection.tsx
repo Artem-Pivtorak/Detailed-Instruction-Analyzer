@@ -184,6 +184,57 @@ function ApiKeyPlaque({ name, t }: { name: string, t: (k:string)=>string }) {
   );
 }
 
+function EngineSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div
+        style={{
+          fontSize: 13,
+          color: "rgba(255,255,255,0.55)",
+          fontFamily: "'RexBold', sans-serif",
+          letterSpacing: "0.05em",
+          marginBottom: 6,
+        }}
+      >
+        {label}
+      </div>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          width: "100%",
+          background: "linear-gradient(135deg, rgba(10, 10, 20, 0.4) 0%, rgba(30, 30, 50, 0.1) 100%)",
+          border: "2px solid rgba(168, 85, 247, 0.9)",
+          boxShadow: "0 0 10px rgba(168, 85, 247, 0.7), inset 0 0 5px rgba(168, 85, 247, 0.4)",
+          borderRadius: 14,
+          padding: "10px 14px",
+          color: "#c084fc",
+          fontFamily: "'RexBold', sans-serif",
+          fontSize: 15,
+          outline: "none",
+          cursor: "pointer",
+        }}
+      >
+        {options.map((opt) => (
+          <option key={opt} value={opt} style={{ background: "#0a0a14", color: "#c084fc" }}>
+            {opt}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export function SettingsSection({
   open,
   onClose,
@@ -209,6 +260,75 @@ export function SettingsSection({
     { id: "r3", label: "Видалене нагадування: «Зустріч о 15:00»" },
   ]);
   const { t } = useI18n();
+  // Реальна конфігурація двигунів/моделей з бекенду (window.pywebview.api.get_engine_config /
+  // set_engine_config, див. gui_get_engine_config/gui_set_engine_config в test.py) - НЕ вигадані вручну
+  // списки, а ті самі, що й в логіці test.py (llm_chat/TTS_ENGINE/STT_ENGINE ветки).
+  const [engineConfig, setEngineConfig] = useState<Record<string, { current: string; options: string[] }> | null>(null);
+  const [engineSavedFlash, setEngineSavedFlash] = useState<string | null>(null);
+  const [engineErrorFlash, setEngineErrorFlash] = useState<string | null>(null);
+  // Чи остання успішна зміна вже ЗаСТОСОВАНА ЖИВО (без перезапуску M.A.R.T.I.N.) чи
+  // ще потрібує перезапуску - приходить з res.applied_live (див. gui_set_engine_config у test.py:
+  // tts_engine тепер живий, решта категорій - ще ні).
+  const [engineLiveFlash, setEngineLiveFlash] = useState<boolean>(false);
+  const [cppKilledInfo, setCppKilledInfo] = useState<boolean | null>(null);
+
+  const fetchEngineConfig = () => {
+    const api = (window as any).pywebview?.api;
+    if (!api?.get_engine_config) return;
+    api
+      .get_engine_config()
+      .then((cfg: any) => setEngineConfig(cfg))
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    if (open) fetchEngineConfig();
+  }, [open]);
+
+  function applyEngineChoice(category: string, value: string) {
+    setEngineConfig((prev) => (prev ? { ...prev, [category]: { ...prev[category], current: value } } : prev));
+    const api = (window as any).pywebview?.api;
+    // ФІКС: `api?.set_engine_config?.(...)` саме по собі безпечне (опціонал-чейн),
+    // але якщо воно повертає undefined (бекенд/метод ще не виголошений), виклик
+    // `.then()` ОДРАЗУ НА НЬОМУ вже НЕ безпечний і кидає виняток (Cannot read properties
+    // of undefined) - вибір виглядав оновленим оптимістично (setEngineConfig вище), але без
+      // жодного видимого сліду в консолі це виглядалося б так, ніби нічого не сталося.
+    if (!api?.set_engine_config) {
+      setEngineErrorFlash(category);
+      return;
+    }
+    api
+      .set_engine_config(category, value)
+      .then((res: { ok: boolean; error?: string; cpp_core_killed?: boolean; applied_live?: boolean }) => {
+        if (res?.ok) {
+          onSound("click-4");
+          setEngineErrorFlash(null);
+          setEngineSavedFlash(category);
+          setEngineLiveFlash(!!res.applied_live);
+          if (category === "tts_engine" || category === "stt_engine" || category === "wake_backend") {
+            setCppKilledInfo(!!res.cpp_core_killed);
+          }
+          setTimeout(() => setEngineSavedFlash((c) => (c === category ? null : c)), 1800);
+        } else {
+          setEngineErrorFlash(category);
+        }
+      })
+      .catch(() => setEngineErrorFlash(category));
+  }
+
+  // Який додатковий ключ моделі показати залежить від обраного LLM_ENGINE (дзеркалить llm_chat()
+  // у test.py: cerebras→CEREBRAS_MODEL, groq→GROQ_MODEL, gemini→GEMINI_MODEL, requests(OpenRouter)→OPENROUTER_MODEL,
+  // g4f→G4F_MODEL, llama-cpp — шлях до файлу моделі, не список варіантів — для нього керуємо).
+  const llmModelKeyFor: Record<string, string | null> = {
+    cerebras: "cerebras_model",
+    groq: "groq_model",
+    gemini: "gemini_model",
+    requests: "openrouter_model",
+    g4f: "g4f_model",
+    "llama-cpp": null,
+  };
+  const currentLlmEngine = engineConfig?.llm_engine?.current;
+  const activeModelKey = currentLlmEngine ? llmModelKeyFor[currentLlmEngine] : null;
   const apiList = [
     "Cerebras",
     "OpenRouter",
@@ -332,6 +452,89 @@ export function SettingsSection({
                 (window as any).setAppLanguage(LANGUAGES[next]);
             }}
           />
+
+          <p
+            style={{
+              fontSize: 16,
+              color: "#a855f7",
+              letterSpacing: "0.15em",
+              fontFamily: "'RexBold', sans-serif",
+              marginBottom: 8,
+              marginTop: 4,
+            }}
+          >
+            {t("settings.enginesTitle")}
+          </p>
+          {!engineConfig ? (
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, fontFamily: "'RexBold', sans-serif", marginBottom: 16 }}>
+              {t("settings.loadingEngines")}
+            </p>
+          ) : (
+            <div style={{ marginBottom: 16 }}>
+              <EngineSelect
+                label={t("settings.ttsEngine")}
+                value={engineConfig.tts_engine.current}
+                options={engineConfig.tts_engine.options}
+                onChange={(v) => applyEngineChoice("tts_engine", v)}
+              />
+              <EngineSelect
+                label={t("settings.sttEngine")}
+                value={engineConfig.stt_engine.current}
+                options={engineConfig.stt_engine.options}
+                onChange={(v) => applyEngineChoice("stt_engine", v)}
+              />
+              <EngineSelect
+                label={t("settings.wakeBackend")}
+                value={engineConfig.wake_backend.current}
+                options={engineConfig.wake_backend.options}
+                onChange={(v) => applyEngineChoice("wake_backend", v)}
+              />
+              <EngineSelect
+                label={t("settings.llmEngine")}
+                value={engineConfig.llm_engine.current}
+                options={engineConfig.llm_engine.options}
+                onChange={(v) => applyEngineChoice("llm_engine", v)}
+              />
+              {activeModelKey && engineConfig[activeModelKey] && (
+                <EngineSelect
+                  label={`${t("settings.modelLabel")} (${currentLlmEngine})`}
+                  value={engineConfig[activeModelKey].current}
+                  options={engineConfig[activeModelKey].options}
+                  onChange={(v) => applyEngineChoice(activeModelKey, v)}
+                />
+              )}
+              <div
+                style={{
+                  fontSize: 11,
+                  color: engineErrorFlash ? "#f87171" : engineSavedFlash ? "#4ade80" : "rgba(255,255,255,0.35)",
+                  fontFamily: "'RexBold', sans-serif",
+                  marginTop: 4,
+                }}
+              >
+                {engineErrorFlash
+                  ? "\u2715 Не вдалося зберегти (бекенд ще не готовий або помилка)"
+                  : engineSavedFlash
+                  ? engineLiveFlash
+                    ? "\u2713 Застосовано живо — без перезапуску"
+                    : `\u2713 ${t("settings.saved")}`
+                  : t("settings.restartRequired")}
+              </div>
+              {cppKilledInfo !== null && (
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: "rgba(192,132,252,0.6)",
+                    fontFamily: "'RexBold', sans-serif",
+                    marginTop: 2,
+                  }}
+                >
+                  {cppKilledInfo
+                    ? "\u2139\uFE0F C++ ядро було запущене зі старим конфігом і завершене — наступний запуск запустить нове."
+                    : "\u2139\uFE0F C++ ядро і так не було запущене (або psutil недоступний) — див. консоль."}
+                </div>
+              )}
+            </div>
+          )}
 
           <p
             style={{

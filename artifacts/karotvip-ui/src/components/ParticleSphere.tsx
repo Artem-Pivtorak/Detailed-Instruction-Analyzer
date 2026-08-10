@@ -1,10 +1,18 @@
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 
 interface ParticleSphereProps {
   size?: number;
   canvasSize?: number;
   isSpeaking?: boolean;
   analyserNodeRef?: React.RefObject<AnalyserNode | null>;
+  // СПРАВЖНІЙ, ідеально синхронізований з бекендом частотний спектр (0-255, оновлюється
+  // покадрово під час відтворення через window.__martinAudioBins / _gui_push_audio_bins() у test.py,
+  // рахований НАПРЯМУ з тих самих байтів, які саме зараз йдуть у динамік). Це
+  // ФАКТИЧНИЙ спектр того, що грає в динаміках ПРЯМО ЗАРАЗ, без жодного дрейфу в часі -
+  // на відміну від analyserNodeRef нижче, який читає дані з ОКРЕМОГО прихованого
+  // <audio> елемента, який ЩЕ РАЗ перепрограє копію файлу - окреме декодування і можливого
+  // збою autoplay-політики браузера.
+  audioBinsRef?: React.RefObject<Uint8Array | null>;
 }
 
 function rotateX(x: number, y: number, z: number, a: number): [number, number, number] {
@@ -30,7 +38,7 @@ function dot3(ax: number, ay: number, az: number, bx: number, by: number, bz: nu
   return ax * bx + ay * by + az * bz;
 }
 
-export function ParticleSphere({ size = 270, canvasSize = 1000, isSpeaking = false, analyserNodeRef }: ParticleSphereProps) {
+export function ParticleSphere({ size = 270, canvasSize = 1000, isSpeaking = false, analyserNodeRef, audioBinsRef }: ParticleSphereProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
   const isSpeakingRef = useRef(isSpeaking);
@@ -54,6 +62,7 @@ export function ParticleSphere({ size = 270, canvasSize = 1000, isSpeaking = fal
     const pts: { 
       nx: number; ny: number; nz: number; 
       sx0: number; sy0: number; sz0: number; 
+      smDisp: number;
     }[] = [];
     
     for (let i = 0; i < COUNT; i++) {
@@ -67,6 +76,7 @@ export function ParticleSphere({ size = 270, canvasSize = 1000, isSpeaking = fal
         sx0: (Math.random() - 0.5) * 3000,
         sy0: (Math.random() - 0.5) * 3000,
         sz0: (Math.random() - 0.5) * 3000, 
+        smDisp: 1.0,
       });
     }
 
@@ -100,31 +110,67 @@ export function ParticleSphere({ size = 270, canvasSize = 1000, isSpeaking = fal
     function draw() {
       ctx!.clearRect(0, 0, canvasSize, canvasSize);
 
-      const targetEnv = isSpeakingRef.current ? 1.0 : 0.0;
-      speechEnv += (targetEnv - speechEnv) * 0.1;
+      // ФІКС (2026-08-09): тут раніше був СПРАВЖНІЙ баг: targetEnv йшов до 1.0 НА ВЕСЬ ЧАС Репліки
+      // (isSpeaking=true), і activeEnv/speechEnv ЛИШЕ ПІДІЙМАВСЯ, ніколи не занижаючись всередині
+      // однієї репліки (`if (activeEnv > speechEnv) speechEnv = activeEnv`). За лерп-фактором 0.1 це
+      // означає, що speechEnv досягає ~1.0 вже через півсекунди від початку репліки і
+      // залишається там до самого кінця - після цього activeEnv = max(rawEnv, speechEnv≈1.0)
+      // ЗАВЖДИ впирається в цю стелю незалежно від реальної гучності в цей конкретний момент -
+      // куля виглядала як "просто грає анімацію на максимумі", а не реагувала на
+      // тихі/гучні ділянки голосу - а саме на це скаржився користувач. Тепер speechEnv -
+      // лише невеликий "живий" фон (ціль всього 0.22, не 1.0), а реальна динаміка повністю
+      // йде від rawEnv/bins ЩОКАДРУ без будь-якого накопичення/ратчет-ефекту.
+      const targetEnv = isSpeakingRef.current ? 0.22 : 0.0;
+      speechEnv += (targetEnv - speechEnv) * 0.12;
 
       let vol = 0;
       let activeEnv = speechEnv;
       let extraBass = 0;
-
-      if (analyserNodeRef?.current) {
+      // Джерело частотних байтів для цього кадру: СПЕРШУ чергу СПРАВЖНІЙ бекенд-спектр
+      // (audioBinsRef - рахований напряму з тих самих байтів, які зараз йдуть у динамік - без
+      // жодного дрейфу/повторного декодування), і лише якщо його ще ніколи не прийшло
+      // (напр. бекенд ще не зв'язаний або це перша взаємодія) - відкатуємося до старого шляху
+      // через браузерний AnalyserNode (прихований <audio>, що перепрограє копію файлу).
+      let bins: ArrayLike<number> | null = null;
+      const realBins = audioBinsRef?.current;
+      if (isSpeakingRef.current && realBins && realBins.length > 0) {
+        bins = realBins;
+      } else if (analyserNodeRef?.current) {
         if (!dataArray || dataArray.length !== analyserNodeRef.current.frequencyBinCount) {
           dataArray = new Uint8Array(analyserNodeRef.current.frequencyBinCount);
         }
         analyserNodeRef.current.getByteFrequencyData(dataArray as any);
-        
+        bins = dataArray;
+      }
+
+      if (bins && bins.length > 0) {
         let sum = 0;
         let bassSum = 0;
-        const len = dataArray.length;
+        const len = bins.length;
+        // ~6% нижніх бінів як бас - той самий пропорційний зріз, що й раніше (15 з 256 у AnalyserNode).
+        const bassBins = Math.max(1, Math.round(len * 0.06));
         for (let k = 0; k < len; k++) {
-          sum += dataArray[k];
-          if (k < 15) bassSum += dataArray[k]; // first 15 bins are bass frequencies
+          sum += bins[k];
+          if (k < bassBins) bassSum += bins[k];
         }
         vol = sum / len / 255.0;
-        let bassVol = bassSum / Math.min(15, len) / 255.0;
-        
+        let bassVol = bassSum / bassBins / 255.0;
+
         if (isSpeakingRef.current) {
-          activeEnv = Math.min(1.2, vol * 2.5); // scaled up to make visually striking
+          // Стартове аудіо (і будь-яке інше, яке грає до першої взаємодії користувача з
+          // сторінкою) грається через прихований <audio> - браузер може заблокувати
+          // autoplay без попереднього користувацького жесту - тоді vol залишається
+          // стабільно ~0 незважаючи на isSpeaking=true, і куля виглядає мертвою саме
+          // в цей момент (всі інші відтворення працюють нормально, бо до них користувач вже клацнув
+          // чи щось натискав в інтерфейсі, тому autoplay там вже дозволений). Це стосується лише
+          // фолбек-гілки analyserNodeRef вище - realBins від бекенду не залежать від autoplay взагалі.
+          // ФІКС (2026-08-09): раніше тут був рядок `if (activeEnv > speechEnv) speechEnv = activeEnv;`,
+          // який НАЗАВЖДИ підіймав speechEnv до будь-якого піку гучності і НІКОЛИ не давав йому
+          // опуститися всередині однієї репліки - ось той самий "ратчет", що забивав реальну
+          // динаміку голосу. Видалено разом із targetEnv=1.0 вище — тепер activeEnv щокадру
+          // повноцінно слідує за реальним rawEnv, лише не падаючи нижче м'якого speechEnv-фону.
+          const rawEnv = Math.min(1.2, vol * 2.5);
+          activeEnv = Math.max(rawEnv, speechEnv);
           extraBass = Math.min(1.5, bassVol * 2.0);
         }
       }
@@ -178,10 +224,10 @@ export function ParticleSphere({ size = 270, canvasSize = 1000, isSpeaking = fal
         // Strict rhythmic snapping instead of smooth waves
         let voicePush = 0;
         
-        if (dataArray && vol > 0.002) { 
+        if (isSpeakingRef.current && bins && bins.length > 0 && vol > 0.002) { 
             // Real audio rhythm! Map particle into frequency bins (lower 60% for most action)
-            const idx = Math.abs(Math.floor(signature * 7123)) % Math.floor(dataArray.length * 0.6);
-            let val = dataArray[idx] / 255.0;
+            const idx = Math.abs(Math.floor(signature * 7123)) % Math.floor(bins.length * 0.6);
+            let val = bins[idx] / 255.0;
             // Square/Cube it to make it sharp and completely remove the "smooth fly/fall wave"
             val = val * val * val; 
             voicePush = activeEnv * 0.85 * val;
@@ -194,9 +240,18 @@ export function ParticleSphere({ size = 270, canvasSize = 1000, isSpeaking = fal
         
         disp += voicePush;
 
-        let px = p.nx * disp * R;
-        let py = p.ny * disp * R;
-        let pz = p.nz * disp * R;
+        // Smoothly interpolate displacement per-particle - АЛЕ НЕ НАДТО, щоб повністю згладжувати справжні
+        // скачки з audioBins - з 0.15 куля відчувалася більш як "плавне дихання", ніж як
+        // "вібрація в такт голосу" - особливо тепер, коли activeEnv вже чесно слідує за
+        // реальним rawEnv (див. фікс вище від 2026-08-09) — завелике згладжування тут залишалося б
+        // затирати цю щойно відновлену динаміку. 0.32 — все ще без різкого "смикання", але вже
+        // чітко відчувається кожен бін.
+        p.smDisp += (disp - p.smDisp) * 0.32;
+        let finalDisp = p.smDisp;
+
+        let px = p.nx * finalDisp * R;
+        let py = p.ny * finalDisp * R;
+        let pz = p.nz * finalDisp * R;
         
         [px, py, pz] = rotateX(px, py, pz, rxA);
         [px, py, pz] = rotateY(px, py, pz, ryA);
@@ -300,4 +355,3 @@ export function ParticleSphere({ size = 270, canvasSize = 1000, isSpeaking = fal
     </div>
   );
 }
-
