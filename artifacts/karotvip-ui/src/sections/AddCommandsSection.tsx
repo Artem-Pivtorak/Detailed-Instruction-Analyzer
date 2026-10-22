@@ -249,12 +249,53 @@ export function AddCommandsSection({ open, onClose, onSound }: AddCommandsSectio
             color: "rgba(255,255,255,0.5)",
             cursor: "pointer",
             fontSize: 28,
-            zIndex: 10,
+            zIndex: 60,
             lineHeight: 1,
           }}
         >
           ✕
         </button>
+
+        {/* Overlay Temporarily deactivated */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(20, 20, 30, 0.6)",
+            backdropFilter: "blur(6px)",
+            WebkitBackdropFilter: "blur(6px)",
+            zIndex: 50,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              width: "150%",
+              background: "rgba(80, 80, 80, 0.8)",
+              padding: "20px 0",
+              transform: "rotate(-10deg)",
+              textAlign: "center",
+              borderTop: "2px solid rgba(255,255,255,0.1)",
+              borderBottom: "2px solid rgba(255,255,255,0.1)",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+            }}
+          >
+            <span
+              style={{
+                fontFamily: "'pdark', sans-serif",
+                fontSize: 28,
+                color: "#e5e5e5",
+                letterSpacing: "0.15em",
+                textShadow: "2px 2px 8px rgba(0,0,0,0.8)",
+              }}
+            >
+              Temporarily deactivated
+            </span>
+          </div>
+        </div>
 
         <div style={{ padding: "40px 40px 28px", flexShrink: 0 }}>
           <h2

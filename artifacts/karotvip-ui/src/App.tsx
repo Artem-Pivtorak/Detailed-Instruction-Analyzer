@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, Component, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ParticleSphere } from "./components/ParticleSphere";
 import { SidePanel } from "./components/SidePanel";
@@ -43,11 +43,138 @@ type MartinUser = {
 // що друкується в консоль test.py (весь stdout процесу).
 const BOOT_CONSOLE_LINES = ["M.A.R.T.I.N. 2.0 — інтерфейс завантажено. Очікую підключення бекенду..."];
 
+// Тип рядка консолі кодується бекендом (console_format.py) невидимим маркером на початку рядка:
+// U+2063 + 4 біти (U+200B = 0, U+200C = 1) + U+2063. Нижче — розбір і м'які кольори за типом.
+const CONSOLE_KIND_COLORS: Record<number, string> = {
+  1: "#a9bfe0", // користувач
+  2: "#dcc4f4", // асистент
+  3: "#b4d6c2", // системні
+  4: "#e0a0a8", // помилки
+  5: "#e0cfa0", // попередження
+  6: "#e0bfa8", // YouTube / медіа
+  7: "#a8d0d6", // керування інтерфейсом
+  8: "#c4b8e8", // LLM
+  9: "#d6d0a0", // команди
+  10: "#a8c8bf", // мова / голос
+  11: "#c0c0c0", // інше
+};
+
+function parseConsoleLine(raw: string): { kind: number; text: string } {
+  // Розбір за кодами символів: U+2063, 4 біти (U+200B/U+200C), U+2063.
+  if (raw && raw.charCodeAt(0) === 0x2063) {
+    let end2 = -1;
+    for (let j = 1; j < Math.min(raw.length, 8); j++) {
+      if (raw.charCodeAt(j) === 0x2063) { end2 = j; break; }
+    }
+    if (end2 > 0) {
+      let k = 0;
+      for (let j = 1; j < end2; j++) k = (k << 1) | (raw.charCodeAt(j) === 0x200c ? 1 : 0);
+      return { kind: k, text: raw.slice(end2 + 1) };
+    }
+  }
+  return { kind: 0, text: raw };
+}
+
+export function _parseConsoleLineLegacy(raw: string): { kind: number; text: string } {
+  if (raw && raw.charCodeAt(0) === 0x2063) {
+    const end = raw.indexOf("⁣", 1);
+    if (end > 0) {
+      let kind = 0;
+      for (const ch of raw.slice(1, end)) kind = (kind << 1) | (ch === "‌" ? 1 : 0);
+      return { kind, text: raw.slice(end + 1) };
+    }
+  }
+  return { kind: 0, text: raw };
+}
+
 import { I18nProvider, useI18n } from "./i18n";
+
+// ФІКС ("сірий екран смерті"): раніше БУДЬ-ЯКА необроблена помилка рендеру
+// (напр. клік по кнопці під час завантаження, коли window.pywebview.api ще
+// не повністю готовий) валила ВЕСЬ React-дерево без жодного ErrorBoundary —
+// pywebview-вікно прозоре (transparent=True), тому щойно React перестає щось
+// малювати, лишається порожній/сірий бекбафер нативного WinForms-вікна, який
+// виглядає як "завис" і не реагує на нічого (кнопки більше нема кому обробляти
+// клік). Єдиний спосіб був — перезапускати програму повністю. ErrorBoundary
+// нижче ловить помилку рендеру ДО того, як вона знищить усе дерево, і показує
+// видиму, непрозору панель з описом помилки та кнопкою "Перезавантажити
+// інтерфейс" (просте location.reload() — це знову підвантажує вже готовий
+// index.html, без потреби перезапускати сам процес M.A.R.T.I.N.).
+class AppErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: { componentStack: string }) {
+    // Друкуємо в консоль (і, якщо GUI-міст живий, це також потрапить у
+    // видиму консоль M.A.R.T.I.N. через window.__martinAppendConsole,
+    // якщо ми встигнемо підписатися — інакше принаймні залишиться в DevTools).
+    console.error("[AppErrorBoundary] Необроблена помилка рендеру:", error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "#0a0a0a",
+            color: "#eee",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 16,
+            padding: 40,
+            fontFamily: "'RexBold', sans-serif",
+            textAlign: "center",
+            zIndex: 999999,
+          }}
+        >
+          <div style={{ fontSize: 20, color: "#f97316" }}>Інтерфейс зіткнувся з помилкою</div>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", maxWidth: 480, whiteSpace: "pre-wrap" }}>
+            {this.state.error.message}
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              marginTop: 12,
+              padding: "12px 24px",
+              background: "rgba(249,115,22,0.2)",
+              border: "2px solid rgba(249,115,22,0.5)",
+              borderRadius: 10,
+              color: "#f97316",
+              fontFamily: "'RexBold', sans-serif",
+              fontSize: 14,
+              cursor: "pointer",
+            }}
+          >
+            Перезавантажити інтерфейс
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function Footer() {
   const { t } = useI18n();
   const [typedText, setTypedText] = useState("");
+  // Рік у копірайті береться з поточної дати (див. t() в i18n.tsx, плейсхолдер {YEAR}).
+  // Цей стан + таймер лише перерендерять Footer, якщо рік змінився, поки
+  // програма працювала безперервно (напр. через Новий рік о 00:00).
+  const [, setCurrentYear] = useState(new Date().getFullYear());
+  useEffect(() => {
+    const id = setInterval(() => setCurrentYear(new Date().getFullYear()), 60_000);
+    return () => clearInterval(id);
+  }, []);
   const fullText = t("footer");
 
   useEffect(() => {
@@ -66,20 +193,10 @@ function Footer() {
   return (
     <div
       style={{
-        // ФІКС (2026-08-08): було position:"absolute", bottom:12 - футер випадав із потоку
-        // документа і міг накладатися на фрейм/поле вводу вище. Перша спроба виправити це
-        // (marginTop:"auto", щоб футер завжди був нижче блоку) гарантувала відсутність
-        // перекриття, але також відтягувала його аж до СПРАВЖНЬОГО низу вікна (бо asphalt-bg
-        // займає всю висоту вікна) - на високому/розгорнутому вікні це виглядало як велика
-        // "діра" між фреймом і копірайтом — візуально виглядало, ніби текст "відірвали" від кулі/фрейму,
-        // хоча накладання вже не було. Тепер фіксований невеликий відступ (24px) одразу під
-        // блоком куля/консоль/ввід — футер тепер ЗАВЖДИ одразу під ними (не внизу вікна), а
-        // CSS-бокс-модель все одно гарантує, що він НІКОЛИ не перекриється (звичайний
-        // flex-потік, а не абсолютне позиціонування).
-        marginTop: 24,
+        position: "absolute",
+        bottom: 12,
         width: "100%",
         flexShrink: 0,
-        paddingBottom: 12,
         textAlign: "center",
         fontSize: 11,
         color: "rgba(160,160,160,0.35)",
@@ -87,7 +204,7 @@ function Footer() {
         letterSpacing: "0.02em",
         userSelect: "none",
         zIndex: 5,
-        minHeight: 14, // To prevent jumping layout during typing
+        minHeight: 14,
       }}
     >
       {typedText}
@@ -96,6 +213,14 @@ function Footer() {
 }
 
 export default function App() {
+  return (
+    <AppErrorBoundary>
+      <AppInner />
+    </AppErrorBoundary>
+  );
+}
+
+function AppInner() {
   const { t } = useI18n();
   const [section, setSection] = useState<Section>(null);
   const [language, setLanguage] = useState<"EN" | "RU" | "UK">("EN");
@@ -126,6 +251,23 @@ export default function App() {
   const hiddenAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const { play, stop } = useSound(soundEnabled);
+
+  // ФІКС ("сірий фон видно під час стартової маски"): Python-сторона
+  // (_run_startup_animation у martin_gui.py) тепер чекає НА цей прапорець ПЕРЕД тим, як
+  // почати розкривати вікно через SetWindowRgn — раніше вона орієнтувалася
+  // на фіксовану паузу (40мс), якої не завжди вистачало WebView2/React, щоб встигнути
+  // застосувати CSS/фон (особливо на холодному старті WebView2) — у той короткий
+  // момент під маскою був видно непрофарбований дефолтний фон (сірий), а не чорний
+  // фон інтерфейсу. Два requestAnimationFrame підряд гарантують, що браузер уже реально
+  // виконав компонування+малювання з приміненим CSS (не чекаємо весь 3-секундний
+  // інтро зі звуковими ефектами, лише перший старт рендеру).
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        (window as any).__martinAppReady = true;
+      });
+    });
+  }, []);
 
   const playSound = useCallback(
     (type: string) => {
@@ -183,6 +325,11 @@ export default function App() {
     };
   }, []); // Empty dependency array ensures intro plays ONLY ONCE on mount
 
+  // Стартова анімація OS-вікна (hidden → show → розгортання по ширині → по висоті)
+  // тепер повністю на Python-стороні (_run_startup_animation у martin_gui.py).
+  // JS-версія видалена бо requestAnimationFrame у прихованому WebView2-вікні
+  // дросселюється до ~1fps — всі IPC-виклики вилітали одночасно після show() → вікно стрибало.
+
   // Listen for inputMode changes to play mode sound
   const prevModeRef = useRef(inputMode);
   useEffect(() => {
@@ -200,6 +347,25 @@ export default function App() {
   const [consoleLines, setConsoleLines] = useState<string[]>(BOOT_CONSOLE_LINES);
   const [textInputValue, setTextInputValue] = useState("");
   const [backendReady, setBackendReady] = useState(false);
+  // ФІКС ("сіріє і не реагує при кліку під час завантаження"): у вікні між
+  // відкриттям вікна і першим звуком готовності (mor/day/evn, див.
+  // _play_gui_ready_sound у test.py) кутові кнопки (мікрофон/режим/звук/меню)
+  // раніше були клікабельні одразу, хоча бекенд (window.pywebview.api) та важкі
+  // анімації інтро (ParticleSphere/GlassDock/фрейм) ще не встигли стабілізуватися.
+  // Клік у цей момент запускав одночасно кілька важких CSS-переходів/GPU-композицій
+  // (backdrop-filter + SVG-фільтр + framer-motion transform) поверх ще незавершеної
+  // інтро-анімації — саме комбінація, яка за задокументованою в проєкті історією вже
+  // ламала композитинг backdrop-filter у WebView2 під час активних transform. Тепер
+  // кнопки просто неактивні (pointer-events:none + приглушені), поки не настане
+  // interactionsReady — момент, коли бекенд підтвердив готовність (backendReady) АБО,
+  // як запобіжник на випадок, якщо бекенд взагалі не піднявся (напр. Python впав),
+  // спливло READY_FALLBACK_TIMEOUT_MS — щоб кнопки не лишались заблокованими назавжди.
+  const [readyTimeoutElapsed, setReadyTimeoutElapsed] = useState(false);
+  const READY_FALLBACK_TIMEOUT_MS = 20000;
+  useEffect(() => {
+    const timer = setTimeout(() => setReadyTimeoutElapsed(true), READY_FALLBACK_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, []);
 
   const consoleEndRef = useRef<HTMLDivElement>(null);
   const consoleScrollRef = useRef<HTMLDivElement>(null);
@@ -224,6 +390,112 @@ export default function App() {
       delete (window as any).__onLanguageChange;
     };
   }, []);
+
+  // ── Персистентність стану інтерфейсу ────────────────────────────────
+  // Раніше мова/мікрофон/режим/звук завжди скидались на дефолт (EN/увімкнено/
+  // Activation Word/увімкнено) при кожному запуску програми, бо жили лише в useState.
+  // Тепер при монтуванні читаємо збережений стан з диска
+  // (window.pywebview.api.get_ui_state(), напряму з ui_state.json — не
+  // потребує готового бекенда test.py) і застосовуємо його один раз, а
+  // кожна подальша зміна цих значень користувачем одразу пишеться назад тим самим
+  // способом (set_ui_state). persistedLoadedRef захищає від зворотного
+  // ефекту: щоб збереження дефолтних значень ДО того, як встиг підвантажитись
+  // збережений стан, не перезаписало його дефолтом.
+  const persistedLoadedRef = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    let attempts = 0;
+    const tryLoad = () => {
+      const api = (window as any).pywebview?.api;
+      if (!api?.get_ui_state) {
+        if (!cancelled && attempts < 100) {
+          attempts++;
+          setTimeout(tryLoad, 100);
+        }
+        return;
+      }
+      api
+        .get_ui_state()
+        .then((saved: Record<string, any>) => {
+          if (cancelled || !saved) return;
+          if (saved.language === "EN" || saved.language === "RU" || saved.language === "UK") {
+            setLanguage(saved.language);
+          }
+          if (typeof saved.mic_enabled === "boolean") {
+            setMicActive(saved.mic_enabled);
+          }
+          if (saved.input_mode !== undefined && saved.input_mode !== null) {
+            const modeNames = ["wakeword", "quick", "text"];
+            const idx = modeNames.indexOf(String(saved.input_mode));
+            if (idx !== -1) {
+              setInputMode(idx);
+            } else {
+              // Захисний варіант (число 0/1/2 зі старого багу, коли фронтенд жив число без узгодження з бекендом)
+              const m = Number(saved.input_mode);
+              if (!Number.isNaN(m)) setInputMode(m);
+            }
+          }
+          if (typeof saved.sound_enabled === "boolean") {
+            setSoundEnabled(saved.sound_enabled);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          persistedLoadedRef.current = true;
+        });
+    };
+    tryLoad();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Кожна зміна мови користувачем — одразу на диск, щоб пережити перезапуск.
+  useEffect(() => {
+    if (!persistedLoadedRef.current) return;
+    (window as any).pywebview?.api?.set_ui_state?.("language", language);
+  }, [language]);
+
+  // Стан кнопки мікрофона — незалежно від set_mic_enabled (яке керує самим
+  // бекендом): тут лише дублюємо збереження напряму на диск, щоб мова/звук/режим
+  // відновлювались навіть якщо користувач перемкнув їх ще до того, як бекенд став готовий
+  // (Python-сторона теж пише цей самий ключ через gui_set_mic_enabled_persisted —
+  // це просто додаткова страховка, щоб зміна не губилась, якщо бекенд ще не піднявся).
+  useEffect(() => {
+    if (!persistedLoadedRef.current) return;
+    (window as any).pywebview?.api?.set_ui_state?.("mic_enabled", micActive);
+  }, [micActive]);
+
+  // Бекенд (самокерування голосом) керує іконками так само, як клік мишею.
+  useEffect(() => {
+    (window as any).__martinSetUiState = (key: string, value: any) => {
+      if (key === "mic_enabled") setMicActive(!!value);
+      else if (key === "sound_enabled") setSoundEnabled(!!value);
+      else if (key === "input_mode") {
+        const idx = ["wakeword", "quick", "text"].indexOf(String(value));
+        if (idx >= 0) setInputMode(idx);
+      }
+    };
+    return () => {
+      delete (window as any).__martinSetUiState;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!persistedLoadedRef.current) return;
+    // ФІКС: зберігаємо ТОЙ Ж ФОРМАТ, що й бекенд (_gui_set_mode_persisted в test.py) -
+    // рядок назви режиму, а НЕ числовий індекс. Раніше тут писався сирий inputMode
+    // (0/1/2) - два різні формати в один й той самий ключ в ui_state.json з двох різних
+    // джерел - хто останній записав той і перемагав, а відновлення (яке чекає число)
+    // тихо ломалося, коли перемагав бекенд (рядок "text" через Number() -> NaN).
+    const modeNames = ["wakeword", "quick", "text"];
+    (window as any).pywebview?.api?.set_ui_state?.("input_mode", modeNames[inputMode] ?? "wakeword");
+  }, [inputMode]);
+
+  useEffect(() => {
+    if (!persistedLoadedRef.current) return;
+    (window as any).pywebview?.api?.set_ui_state?.("sound_enabled", soundEnabled);
+  }, [soundEnabled]);
 
   
   // Робоча область екрана (без taskbar), на якому саме вікно зараз - береться
@@ -261,7 +533,11 @@ export default function App() {
         const api = (window as any).pywebview?.api;
         if (api?.resize_window) {
           const area = getWorkAreaFromScreen();
-          api.resize_window(area.x, area.y, area.width, area.height);
+          // ФІКС (2026-08-11): п'ятий аргумент `false` = enforce_min на Python-стороні. Без цього
+          // resize_window безумовно форсував вікно бути не менше 900x760, ЩО НА БАГАТЬОХ екранах
+          // більше за реальну робочу область (напр. 1366x768) - тому вікно лягало вище taskbar саме
+          // тоді, коли ми намагалися його підігнати.
+          api.resize_window(area.x, area.y, area.width, area.height, false);
         }
         setIsMaximized(true);
       }
@@ -381,11 +657,23 @@ export default function App() {
           source.connect(analyserRef.current!);
           (audio as any).__wired = true;
         }
-        if (audioCtxRef.current.state === "suspended") audioCtxRef.current.resume();
         // Відносний шлях працює через HTTP-сервер pywebview (без CORS)
         audio.src = `./current_tts.wav?t=${Date.now()}`;
         audio.currentTime = 0;
-        audio.play().catch(() => {});
+        // ФІКС: раніше play() викликався одразу, НЕ чекаючи асинхронного
+        // ctx.resume() — якщо AudioContext ще був "suspended" саме в момент
+        // виклику (типовий випадок для найпершого відтворення за сесію,
+        // поки немає жодного попереднього user-gesture unlock'у), перші кадри
+        // йшли повз AnalyserNode "мовчки" (getByteFrequencyData вертає нулі,
+        // поки контекст не resumed) — тому перше аудіо програвалося без
+        // анімації кулі. Тепер play() чекає на реальне завершення resume().
+        const ctxForPlay = audioCtxRef.current;
+        const startPlayback = () => audio!.play().catch(() => {});
+        if (ctxForPlay.state === "suspended") {
+          ctxForPlay.resume().then(startPlayback).catch(startPlayback);
+        } else {
+          startPlayback();
+        }
       } catch {
         /* тихо ігноруємо — анімація просто відвалиться на isSpeaking-фолбек */
       }
@@ -499,6 +787,10 @@ export default function App() {
   const titleBarOffset =
     typeof (window as any).pywebview !== "undefined" ? 32 : 0;
 
+  // Кнопки активні лише після mounted (інтро-анімація) і коли бекенд готовий
+  // (backendReady) або спрацював запобіжний таймаут (readyTimeoutElapsed).
+  const interactionsReady = mounted && (backendReady || readyTimeoutElapsed);
+
   // pywebview gives frameless windows NO native OS edge/corner resize
   // handles at all (confirmed limitation, not something a create_window
   // flag turns on: https://github.com/r0x0r/pywebview/discussions/1591) -
@@ -516,7 +808,13 @@ export default function App() {
     h: number;
   } | null>(null);
   const MIN_WINDOW_WIDTH = 900;
-  const MIN_WINDOW_HEIGHT = 600;
+  // ФІКС (2026-08-11): 760 -> 700, узгоджено з min_size в martin_gui.py - нижче на багатьох
+  // екранах цей флор міг би заважати реальній робочій області екрана при ручному ресайзі
+  // куточок. Цей констант стосується ТІЛЬКИ ручного ресайзу мишкою в startResize() нижче -
+  // розгортання (toggleMaximize/handleResize) вже НЕ використовує його взагалі -
+  // вони передають enforce_min=false в api.resize_window() і завжди точно відповідають реальній
+  // робочій області екрана, незалежно від цього числа.
+  const MIN_WINDOW_HEIGHT = 700;
 
   function startResize(e: React.PointerEvent, direction: string) {
     e.preventDefault();
@@ -646,7 +944,11 @@ const [windowTransition, setWindowTransition] = useState<"none" | "minimizing" |
       const geo = await api.get_window_geometry();
       preMaximizeGeoRef.current = { x: geo.x, y: geo.y, w: geo.width, h: geo.height };
       const area = getWorkAreaFromScreen();
-      await api.resize_window(area.x, area.y, area.width, area.height);
+      // ФІКС (2026-08-11): той самий `false` що й в handleResize вище - без нього min_size=900x760
+      // на Python-стороні форсував вікно бути вищим за реальну робочу область на багатьох екранах
+      // (напр. 1366x768) - саме це й було справжньою причиною, чому кнопка "розгорнути" в інтерфейсі
+      // покривала панель задач.
+      await api.resize_window(area.x, area.y, area.width, area.height, false);
       setIsMaximized(true);
     } else {
       const prev = preMaximizeGeoRef.current;
@@ -886,7 +1188,7 @@ const [windowTransition, setWindowTransition] = useState<"none" | "minimizing" |
         ────────────────────────────────────────────────────────────────────── */}
         {typeof (window as any).pywebview !== "undefined" && (
           <>
-            <div onPointerDown={(e) => startResize(e, "s")} style={{ position: "fixed", bottom: 0, left: 8, right: 8, height: 5, cursor: "ns-resize", zIndex: 10000, touchAction: "none" }} />
+            <div onPointerDown={(e) => startResize(e, "s")} style={{ position: "fixed", bottom: 0, left: 8, right: 8, height: 10, cursor: "ns-resize", zIndex: 10000, touchAction: "none" }} />
             <div onPointerDown={(e) => startResize(e, "w")} style={{ position: "fixed", left: 0, top: 40, bottom: 8, width: 5, cursor: "ew-resize", zIndex: 10000, touchAction: "none" }} />
             <div onPointerDown={(e) => startResize(e, "e")} style={{ position: "fixed", right: 0, top: 40, bottom: 8, width: 5, cursor: "ew-resize", zIndex: 10000, touchAction: "none" }} />
             <div onPointerDown={(e) => startResize(e, "sw")} style={{ position: "fixed", bottom: 0, left: 0, width: 8, height: 8, cursor: "nesw-resize", zIndex: 10001, touchAction: "none" }} />
@@ -919,15 +1221,20 @@ const [windowTransition, setWindowTransition] = useState<"none" | "minimizing" |
             top: 20 + titleBarOffset,
             right: 20,
             zIndex: 50,
+            display: inputMode === 2 ? "none" : undefined,
             animationDelay: "0.4s",
+            pointerEvents: interactionsReady ? "auto" : "none",
+            opacity: interactionsReady ? 1 : 0.4,
+            transition: "opacity 0.3s ease",
           }}
         >
           <motion.button
             className={`neon-btn motion-gpu ${micActive ? "neon-pink" : "neon-gray"}`}
-            whileHover={{ scale: 1.15, rotate: 5 }}
-            whileTap={{ scale: 0.9 }}
+            whileHover={interactionsReady ? { scale: 1.15, rotate: 5 } : undefined}
+            whileTap={interactionsReady ? { scale: 0.9 } : undefined}
             transition={{ type: "spring", stiffness: 600, damping: 30 }}
             onClick={() => {
+              if (!interactionsReady) return;
               const next = !micActive;
               setMicActive(next);
               playSound(micActive ? "click-3-clowse" : "click-4");
@@ -975,13 +1282,17 @@ const [windowTransition, setWindowTransition] = useState<"none" | "minimizing" |
             right: 20,
             zIndex: 50,
             animationDelay: "0.5s",
+            pointerEvents: interactionsReady ? "auto" : "none",
+            opacity: interactionsReady ? 1 : 0.4,
+            transition: "opacity 0.3s ease",
           }}
         >
           <motion.button
             className={`neon-btn motion-gpu ${inputMode === 0 ? "neon-cyan" : inputMode === 1 ? "neon-green" : "neon-yellow"}`}
-            whileHover={{ scale: 1.15, rotate: 5 }}
-            whileTap={{ scale: 0.9 }}
+            whileHover={interactionsReady ? { scale: 1.15, rotate: 5 } : undefined}
+            whileTap={interactionsReady ? { scale: 0.9 } : undefined}
             onClick={() => {
+              if (!interactionsReady) return;
               setInputMode((m) => {
                 const next = (m + 1) % 3;
                 // 0 = активаційне слово (звичайний голосовий режим, сесія 40с),
@@ -1037,13 +1348,17 @@ const [windowTransition, setWindowTransition] = useState<"none" | "minimizing" |
             right: 20,
             zIndex: 50,
             animationDelay: "0.6s",
+            pointerEvents: interactionsReady ? "auto" : "none",
+            opacity: interactionsReady ? 1 : 0.4,
+            transition: "opacity 0.3s ease",
           }}
         >
           <motion.button
             className={`neon-btn motion-gpu ${soundEnabled ? "neon-orange" : "neon-gray"}`}
-            whileHover={{ scale: 1.15, rotate: 5 }}
-            whileTap={{ scale: 0.9 }}
+            whileHover={interactionsReady ? { scale: 1.15, rotate: 5 } : undefined}
+            whileTap={interactionsReady ? { scale: 0.9 } : undefined}
             onClick={() => {
+              if (!interactionsReady) return;
               setSoundEnabled(!soundEnabled);
               if (!soundEnabled) {
                 playSound("click-6-mode");
@@ -1365,13 +1680,17 @@ const [windowTransition, setWindowTransition] = useState<"none" | "minimizing" |
             left: 20,
             zIndex: 50,
             animationDelay: "0.2s",
+            pointerEvents: interactionsReady ? "auto" : "none",
+            opacity: interactionsReady ? 1 : 0.4,
+            transition: "opacity 0.3s ease",
           }}
         >
           <motion.button
             className="neon-btn neon-cyan motion-gpu"
-            whileHover={{ scale: 1.15, rotate: -5 }}
-            whileTap={{ scale: 0.94 }}
+            whileHover={interactionsReady ? { scale: 1.15, rotate: -5 } : undefined}
+            whileTap={interactionsReady ? { scale: 0.94 } : undefined}
             onClick={() => {
+              if (!interactionsReady) return;
               setSidePanel(true);
               playSound("click-4");
             }}
@@ -1436,14 +1755,22 @@ const [windowTransition, setWindowTransition] = useState<"none" | "minimizing" |
             // фіксованого height), а Footer нижче тепер звичайний flex-дитина тогож колонки
             // (див. коментар в самому Footer вище) - CSS гарантує, що він завжди нижче цього блоку,
             // а не перекривається ним.
-            marginTop: 10,
+            // ФІКС (копірайт-текст обрізається): було 10, але разом з іншими
+            // фіксованими відступами нижче весь блок (куля + фрейм + Footer) не вміщався
+            // на мінімальній висоті вікна (MIN_WINDOW_HEIGHT=700) і напис про копірайт у
+            // Footer'і вилітав за межі (overflow:hidden у asphalt-bg). Підняли весь блок вище,
+            // прибравши цей відступ (див. також marginBottom під кулею та marginTop/paddingBottom в
+            // Footer нижче).
+            marginTop: 0,
             transition: "transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)",
           }}
         >
           {/* Particle sphere */}
           <div
-            style={{ marginBottom: 30, cursor: "pointer" }}
-            onClick={() => openSection("brain")}
+            // ФІКС ("фрейми консолі/вводу підняти трохи вгору, ближче до сфери"): було 12 — зменшено,
+            // щоб фрейм консолі сидів щільніше до кулі (див. також marginTop поля вводу нижче).
+            style={{ marginBottom: 4, cursor: interactionsReady ? "pointer" : "default", pointerEvents: interactionsReady ? "auto" : "none" }}
+            onClick={() => { if (interactionsReady) openSection("brain"); }}
           >
             <ParticleSphere
               size={350}
@@ -1505,7 +1832,7 @@ const [windowTransition, setWindowTransition] = useState<"none" | "minimizing" |
               style={{
                 position: "relative",
                 zIndex: 3,
-                fontFamily: "'RexBold', monospace",
+                fontFamily: "'Cascadia Mono', 'Consolas', 'Segoe UI', monospace",
                 fontSize: 14,
                 lineHeight: 1.9,
                 height: "100%",
@@ -1524,23 +1851,30 @@ const [windowTransition, setWindowTransition] = useState<"none" | "minimizing" |
                 }}
               >
                 {/* Committed lines */}
-                {consoleLines.map((line, i) => (
-                  <div
-                    key={i}
-                    className={
-                      line.includes("M.A.R.T.I.N >") || line.startsWith("SYSTEM:")
-                        ? "hologram-line-purple"
-                        : "hologram-line-white"
-                    }
-                    style={{
-                      opacity:
-                        0.6 + (i / Math.max(1, consoleLines.length)) * 0.4,
-                      position: "relative",
-                    }}
-                  >
-                    {line}
-                  </div>
-                ))}
+                {consoleLines.map((rawLine, i) => {
+                  const { kind, text: line } = parseConsoleLine(rawLine);
+                  const kindColor = CONSOLE_KIND_COLORS[kind];
+                  return (
+                    <div
+                      key={i}
+                      className={
+                        kindColor
+                          ? "hologram-line-white"
+                          : line.includes("M.A.R.T.I.N >") || line.startsWith("SYSTEM:")
+                            ? "hologram-line-purple"
+                            : "hologram-line-white"
+                      }
+                      style={{
+                        opacity:
+                          0.6 + (i / Math.max(1, consoleLines.length)) * 0.4,
+                        position: "relative",
+                        ...(kindColor ? { color: kindColor } : {}),
+                      }}
+                    >
+                      {line}
+                    </div>
+                  );
+                })}
                 {/* Живий курсор після останнього реального рядка консолі */}
                 <div className="hologram-text" style={{ color: "#e2c0ff" }}>
                   <span
@@ -1618,7 +1952,7 @@ const [windowTransition, setWindowTransition] = useState<"none" | "minimizing" |
                   transition: { duration: 0.3 },
                 }}
                 style={{
-                  marginTop: 16,
+                  marginTop: 8,  // ФІКС (ближче до сфери/консолі): було 16
                   width: 480,
                   display: "flex",
                   gap: 16,
@@ -1682,9 +2016,9 @@ const [windowTransition, setWindowTransition] = useState<"none" | "minimizing" |
                       outline: "none",
                       padding: "0 20px",
                       color: "rgba(255, 255, 255, 0.95)",
-                      fontFamily: "'RexBold', sans-serif",
-                      fontSize: 13,
-                      letterSpacing: "0.1em",
+                      fontFamily: "'Cascadia Mono', 'Consolas', 'Segoe UI', monospace",
+                      fontSize: 14,
+                      letterSpacing: "0.02em",
                       position: "relative",
                       zIndex: 1,
                     }}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "../i18n";
 import { GlassDock } from "./GlassDock";
@@ -9,35 +9,156 @@ interface BrainProps {
   onSound?: (type: string) => void;
 }
 
+// ФІКС ("розібратись в системі мозку і повністю переробити зв'язок з обсидіаном на brain в
+// інтерфейсі"): раніше ВЕСЬ граф (3 групи "Users/M.A.R.T.I.N./System", назви й тексти нейронів)
+// генерувався ВИПАДКОВО (Math.random) при кожному відкритті — жодного зв'язку з реальними
+// даними. Тепер групи/підгрупи/нейрони приходять з РЕАЛЬНОГО SQLite-"мозку" (martin_brain.py,
+// той самий, що дає контекст LLM) і з тих самих джерел, що й секції People/Memory, через
+// window.pywebview.api.get_brain_data() (див. gui_get_brain_data у test.py) — шість блоків:
+// журнал дій / факти з розмов (memory_facts) / проєкти / музика / люди (те саме, що People) /
+// пам'ять розмов (те саме, що Memory, memory.txt) — БЕЗ персоналізації самого асистента
+// (user_profile — ім'я/вік/хобі — свідомо виключено на бекенді). Кожна ГРУПА має власний колір
+// (як в старому декоративному варіанті), ПІДГРУПИ — за category/status/датою/роллю всередині
+// таблиці, і рівно стільки НЕЙРОНІВ, скільки реальних записів — без жодного вигаданого
+// доповнення.
+interface BrainNeuron {
+  title: string;
+  info: string;
+}
+interface BrainSubgroup {
+  key: string;
+  label: string;
+  neurons: BrainNeuron[];
+}
+interface BrainGroupData {
+  key: string;
+  label: string;
+  color: string; // "R, G, B"
+  subgroups: BrainSubgroup[];
+}
+
+function rgbToHex(rgb: string): string {
+  const [r, g, b] = rgb.split(",").map((n) => parseInt(n.trim(), 10) || 0);
+  return "#" + [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("");
+}
+
 export function Brain({ open, onClose, onSound }: BrainProps) {
   const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeGroup, setActiveGroup] = useState<number | null>(0);
-  const [closingGroup, setClosingGroup] = useState<number | null>(null);
+  const [activeGroup, setActiveGroup] = useState<string | null>(null);
+  const [activeSubgroup, setActiveSubgroup] = useState<string | null>(null);
   const [nodeCount, setNodeCount] = useState(0);
   const [linkCount, setLinkCount] = useState(0);
-  const [groupNeurons, setGroupNeurons] = useState<{
-    [key: number]: {
-      id: number;
-      title: string;
-      info: string;
-      colorHex: string;
-      colorRgb: string;
-    }[];
-  }>({});
 
+  // Реальні дані з бекенду — завантажуються при кожному відкритті секції (не поллінг,
+  // мозок не змінюється настільки швидко, щоб це було потрібно постійно; свіжі дані
+  // користувач отримує щоразу відкриваючи Brain заново).
+  const [brainGroups, setBrainGroups] = useState<BrainGroupData[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchBrainData = useCallback(() => {
+    const api = (window as any).pywebview?.api;
+    if (!api?.get_brain_data) return;
+    setLoading(true);
+    api
+      .get_brain_data()
+      .then((data: any) => {
+        setBrainGroups(Array.isArray(data?.groups) ? data.groups : []);
+      })
+      .catch(() => setBrainGroups([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    fetchBrainData();
+  }, [open, fetchBrainData]);
+
+  // Кнопка "Очистити всю пам'ять" — модалка з паролем (той самий TEXT_MODE_PASSWORD, що й для
+  // ADMIN у текстовому режимі), яка викликає window.pywebview.api.clear_brain(password). Бекенд
+  // (gui_clear_brain у test.py) чистить SQLite-мозок, КРІМ memory_facts/memory.txt/users.json —
+  // ці керуються тільки через власні секції Memory/People, ця кнопка їх не займає.
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [clearPassword, setClearPassword] = useState("");
+  const [clearSubmitting, setClearSubmitting] = useState(false);
+  const [clearError, setClearError] = useState("");
+  const [clearDone, setClearDone] = useState(false);
+
+  function closeClearModal() {
+    setShowClearModal(false);
+    setClearPassword("");
+    setClearError("");
+    setClearSubmitting(false);
+    setClearDone(false);
+  }
+
+  async function handleClearBrain() {
+    setClearSubmitting(true);
+    setClearError("");
+    const api = (window as any).pywebview?.api;
+    if (!api?.clear_brain) {
+      setClearError(t("people.apiUnavailable"));
+      setClearSubmitting(false);
+      return;
+    }
+    try {
+      const res = await api.clear_brain(clearPassword);
+      if (res?.ok) {
+        setClearDone(true);
+        setClearPassword("");
+        fetchBrainData();
+        setTimeout(closeClearModal, 900);
+      } else {
+        setClearError(res?.error || t("persona.errorWrongPassword"));
+      }
+    } catch (e: any) {
+      setClearError(String(e?.message || e));
+    } finally {
+      setClearSubmitting(false);
+    }
+  }
+
+  // ФІКС ("щоб я міг видалити або змінити якийсь з пунктів з Brain секції
+  // самостійно"): для групи "facts" (memory_facts — LLM-факти з розмов)
+  // модалка нейрона тепер несе ще й factKey (= node.title, ключ факту
+  // напряму з бекенду) і userId (витягнений з тексту info, який бекенд сам
+  // форматує як "...(користувач: {user_id}, оновлено: ...)" —
+  // gui_get_brain_data() в test.py не віддає user_id окремим полем, тому
+  // єдиний спосіб його отримати без зміни того ендпоинта — розпарсити з
+  // уже наявного тексту). Кнопки Delete/Edit рендеряються лише коли
+  // groupKey === "facts" — для journal/projects/music/people це історичні
+  // записи без свого редактора тут.
   const [modalNode, setModalNode] = useState<{
     title: string;
     info: string;
     colorHex: string;
     colorRgb: string;
+    groupKey?: string;
+    factKey?: string;
+    factUserId?: string;
   } | null>(null);
   const [typedTitle, setTypedTitle] = useState("");
   const [typedBody, setTypedBody] = useState("");
   const [sepFull, setSepFull] = useState(false);
   const typingTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const [factEditing, setFactEditing] = useState(false);
+  const [factEditValue, setFactEditValue] = useState("");
+  const [factSubmitting, setFactSubmitting] = useState(false);
+  const [factError, setFactError] = useState("");
+  const [factConfirmDelete, setFactConfirmDelete] = useState(false);
+  const [factDone, setFactDone] = useState<"" | "saved" | "deleted">("");
+
+  function resetFactEditState() {
+    setFactEditing(false);
+    setFactEditValue("");
+    setFactSubmitting(false);
+    setFactError("");
+    setFactConfirmDelete(false);
+    setFactDone("");
+  }
 
   function typeText(
     text: string,
@@ -64,13 +185,21 @@ export function Brain({ open, onClose, onSound }: BrainProps) {
     info: string;
     colorHex: string;
     colorRgb: string;
+    groupKey?: string;
   }) {
     typingTimeoutsRef.current.forEach(clearTimeout);
     typingTimeoutsRef.current = [];
     setTypedTitle("");
     setTypedBody("");
     setSepFull(false);
-    setModalNode(node);
+    resetFactEditState();
+
+    let factUserId: string | undefined;
+    if (node.groupKey === "facts") {
+      const m = node.info.match(/користувач:\s*([^,]+),/);
+      factUserId = m ? m[1].trim() : undefined;
+    }
+    setModalNode({ ...node, factKey: node.title, factUserId });
 
     typingTimeoutsRef.current.push(
       setTimeout(() => {
@@ -86,6 +215,62 @@ export function Brain({ open, onClose, onSound }: BrainProps) {
     typingTimeoutsRef.current.forEach(clearTimeout);
     typingTimeoutsRef.current = [];
     setModalNode(null);
+    resetFactEditState();
+  }
+
+  async function handleDeleteFact() {
+    if (!modalNode?.factKey || !modalNode?.factUserId) return;
+    setFactSubmitting(true);
+    setFactError("");
+    const api = (window as any).pywebview?.api;
+    if (!api?.delete_brain_fact) {
+      setFactError(t("people.apiUnavailable"));
+      setFactSubmitting(false);
+      return;
+    }
+    try {
+      const res = await api.delete_brain_fact(modalNode.factKey, modalNode.factUserId);
+      if (res?.ok) {
+        setFactDone("deleted");
+        fetchBrainData();
+        setTimeout(closeNodeModal, 900);
+      } else {
+        setFactError(res?.error || t("brain.factActionError"));
+        setFactSubmitting(false);
+      }
+    } catch (e: any) {
+      setFactError(String(e?.message || e));
+      setFactSubmitting(false);
+    }
+  }
+
+  async function handleSaveFactEdit() {
+    if (!modalNode?.factKey || !modalNode?.factUserId) return;
+    const newValue = factEditValue.trim();
+    if (!newValue) return;
+    setFactSubmitting(true);
+    setFactError("");
+    const api = (window as any).pywebview?.api;
+    if (!api?.update_brain_fact) {
+      setFactError(t("people.apiUnavailable"));
+      setFactSubmitting(false);
+      return;
+    }
+    try {
+      const res = await api.update_brain_fact(modalNode.factKey, modalNode.factUserId, newValue);
+      if (res?.ok) {
+        setFactDone("saved");
+        setFactEditing(false);
+        fetchBrainData();
+        setTimeout(closeNodeModal, 900);
+      } else {
+        setFactError(res?.error || t("brain.factActionError"));
+        setFactSubmitting(false);
+      }
+    } catch (e: any) {
+      setFactError(String(e?.message || e));
+      setFactSubmitting(false);
+    }
   }
 
   useEffect(() => {
@@ -95,38 +280,6 @@ export function Brain({ open, onClose, onSound }: BrainProps) {
   useEffect(() => {
     return () => typingTimeoutsRef.current.forEach(clearTimeout);
   }, []);
-
-  const NAMES = [
-    [t("brain.name1"), t("brain.name2"), t("brain.name3")],
-    [t("brain.name1"), t("brain.name2"), t("brain.name3")],
-    [t("brain.name1"), t("brain.name2"), t("brain.name3")],
-  ];
-  const INFOS = [
-    t("brain.info1"),
-    t("brain.info2"),
-    t("brain.info3"),
-  ];
-
-  const GROUPS = [
-    {
-      id: 0,
-      title: t("brain.groupUsers"),
-      rgb: "124, 58, 237",
-      hexColors: ["#7c3aed", "#8b5cf6", "#a78bfa"],
-    },
-    {
-      id: 1,
-      title: t("brain.groupMartin"),
-      rgb: "6, 182, 212",
-      hexColors: ["#06b6d4", "#22d3ee", "#67e8f9"],
-    },
-    {
-      id: 2,
-      title: t("brain.groupSystem"),
-      rgb: "244, 63, 94",
-      hexColors: ["#f43f5e", "#fb7185", "#fda4af"],
-    },
-  ];
 
   const openRef = useRef(open);
   useEffect(() => {
@@ -143,6 +296,37 @@ export function Brain({ open, onClose, onSound }: BrainProps) {
     searchQueryRef.current = searchQuery;
   }, [searchQuery]);
 
+  // Авто-розгортання при пошуку: обчислюємо які групи/підгрупи містять збіги.
+  // вони показуються відкритими автоматично, без потреби клікати.
+  const searchExpanded = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const groups = new Set<string>();
+    const subs = new Set<string>();
+    if (q) {
+      for (const group of brainGroups) {
+        for (const sub of group.subgroups) {
+          const hasMatch = sub.neurons.some(
+            (n) =>
+              n.title.toLowerCase().includes(q) ||
+              n.info.toLowerCase().includes(q),
+          );
+          if (hasMatch) {
+            groups.add(group.key);
+            subs.add(`${group.key}:${sub.key}`);
+          }
+        }
+      }
+    }
+    return { groups, subs };
+  }, [searchQuery, brainGroups]);
+
+  // Ключ перерендеру 3D-графа: змінюється лише коли реально прийшли нові дані
+  // (кількість груп + сумарна кількість нейронів) — щоб не перезапускати весь
+  // canvas-ефект на кожен дрібний ре-рендер компонента.
+  const dataSignature = brainGroups
+    .map((g) => `${g.key}:${g.subgroups.reduce((n, s) => n + s.neurons.length, 0)}`)
+    .join("|");
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -150,6 +334,16 @@ export function Brain({ open, onClose, onSound }: BrainProps) {
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+
+    // ФІКС ("рівно стільки нейронів скільки реальних записів"): GROUPS/неурони тепер
+    // будуються з РЕАЛЬНИХ brainGroups замість випадкової генерації. Якщо даних ще
+    // немає (завантаження/порожній мозок) — граф просто порожній, без вигаданих вузлів.
+    const GROUPS = brainGroups.map((g) => ({
+      key: g.key,
+      title: g.label,
+      rgb: g.color,
+      hex: rgbToHex(g.color),
+    }));
 
     let width: number, height: number;
     let nodes: Node[] = [];
@@ -172,11 +366,18 @@ export function Brain({ open, onClose, onSound }: BrainProps) {
       clickStartY = 0,
       clickStartTime = 0;
 
-    const CLUSTER_CENTERS = [
-      { x: -180, y: 20, z: 120 },
-      { x: 150, y: -150, z: -100 },
-      { x: 150, y: 150, z: 20 },
-    ];
+    // Центри кластерів розташовуються по колу — кількість груп тепер довільна
+    // (не завжди рівно 3, як раніше), тому вираховуємо позиції динамічно.
+    const CLUSTER_CENTERS = GROUPS.map((_, i) => {
+      const n = Math.max(1, GROUPS.length);
+      const angle = (i / n) * Math.PI * 2;
+      const radius = n <= 1 ? 0 : 220;
+      return {
+        x: Math.cos(angle) * radius,
+        y: Math.sin(angle * 0.6) * 100,
+        z: Math.sin(angle) * radius,
+      };
+    });
 
     const FOV = 800;
     const DRAG_FOLLOW = 0.08,
@@ -188,8 +389,9 @@ export function Brain({ open, onClose, onSound }: BrainProps) {
       DAMPING = 0.94,
       CLUSTER_PULL = 0.00003,
       NOISE = 0.005;
-    const MIN_NODES = 35,
-      MAX_NODES = 85;
+    // Максимум вузлів для продуктивності canvas-рендеру — не штучний мінімум/рандомний
+    // діапазон, як раніше, а лише запобіжна стеля на випадок дуже великого журналу.
+    const MAX_RENDER_NODES = 400;
 
     function resize() {
       width = canvas.width = container.clientWidth || 1920;
@@ -244,24 +446,18 @@ export function Brain({ open, onClose, onSound }: BrainProps) {
       scale: number;
       depth: number | undefined;
 
-      constructor(id: number, groupId: number) {
+      constructor(id: number, groupId: number, title: string, info: string) {
         this.id = id;
         this.groupId = groupId;
 
         const group = GROUPS[this.groupId];
-        this.colorHex =
-          group.hexColors[Math.floor(Math.random() * group.hexColors.length)];
+        this.colorHex = group.hex;
         this.colorRgb = group.rgb;
 
-        this.title =
-          NAMES[this.groupId][Math.floor(Math.random() * 3)] +
-          Math.floor(Math.random() * 9999);
-        this.info = INFOS[this.groupId].replace(
-          /\{T\}/g,
-          String(Math.floor(Math.random() * 100) + 10)
-        );
+        this.title = title;
+        this.info = info;
 
-        const center = CLUSTER_CENTERS[this.groupId];
+        const center = CLUSTER_CENTERS[this.groupId] || { x: 0, y: 0, z: 0 };
         this.x = center.x + (Math.random() - 0.5) * 200;
         this.y = center.y + (Math.random() - 0.5) * 200;
         this.z = center.z + (Math.random() - 0.5) * 200;
@@ -322,7 +518,7 @@ export function Brain({ open, onClose, onSound }: BrainProps) {
         this.vy += (Math.random() - 0.5) * NOISE;
         this.vz += (Math.random() - 0.5) * NOISE;
 
-        const center = CLUSTER_CENTERS[this.groupId];
+        const center = CLUSTER_CENTERS[this.groupId] || { x: 0, y: 0, z: 0 };
         this.vx += (center.x - this.x) * CLUSTER_PULL;
         this.vy += (center.y - this.y) * CLUSTER_PULL;
         this.vz += (center.z - this.z) * CLUSTER_PULL;
@@ -453,11 +649,18 @@ export function Brain({ open, onClose, onSound }: BrainProps) {
     function createGraph() {
       nodes = [];
       links = [];
-      let nodeCount = Math.floor((width * height) / 12000);
-      nodeCount = Math.max(MIN_NODES, Math.min(nodeCount, MAX_NODES));
 
-      for (let i = 0; i < nodeCount; i++) {
-        nodes.push(new Node(i, i % 3));
+      // Один вузол на кожен РЕАЛЬНИЙ нейрон (запис у журналі/пам'яті/проєкті/музиці) —
+      // не випадкова кількість, як було раніше.
+      let id = 0;
+      outer: for (let gi = 0; gi < GROUPS.length; gi++) {
+        const group = brainGroups[gi];
+        for (const sub of group.subgroups) {
+          for (const neuron of sub.neurons) {
+            nodes.push(new Node(id++, gi, neuron.title, neuron.info));
+            if (id >= MAX_RENDER_NODES) break outer;
+          }
+        }
       }
 
       for (let i = 0; i < nodes.length; i++) {
@@ -487,32 +690,8 @@ export function Brain({ open, onClose, onSound }: BrainProps) {
         }
       }
 
-      // Update counters and group neurons
       setNodeCount(nodes.length);
       setLinkCount(links.length);
-
-      // Group neurons by groupId for submenu display (id + real title + info)
-      const grouped: {
-        [key: number]: {
-          id: number;
-          title: string;
-          info: string;
-          colorHex: string;
-          colorRgb: string;
-        }[];
-      } = { 0: [], 1: [], 2: [] };
-      nodes.forEach((node) => {
-        if (grouped[node.groupId]) {
-          grouped[node.groupId].push({
-            id: node.id,
-            title: node.title,
-            info: node.info,
-            colorHex: node.colorHex,
-            colorRgb: node.colorRgb,
-          });
-        }
-      });
-      setGroupNeurons(grouped);
     }
 
     function applyForces() {
@@ -575,12 +754,9 @@ export function Brain({ open, onClose, onSound }: BrainProps) {
     }
 
     function drawFogAndLinks(sortedNodes: Node[], sortedLinks: Link[]) {
-      const groupPos = [
-        { x: 0, y: 0, z: 0, c: 0 },
-        { x: 0, y: 0, z: 0, c: 0 },
-        { x: 0, y: 0, z: 0, c: 0 },
-      ];
+      const groupPos = GROUPS.map(() => ({ x: 0, y: 0, z: 0, c: 0 }));
       for (const node of nodes) {
+        if (!groupPos[node.groupId]) continue;
         groupPos[node.groupId].x += node.x;
         groupPos[node.groupId].y += node.y;
         groupPos[node.groupId].z += node.z;
@@ -589,7 +765,7 @@ export function Brain({ open, onClose, onSound }: BrainProps) {
 
       let fogs: { id: number; x: number; y: number; z: number; scale: number }[] =
         [];
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < GROUPS.length; i++) {
         if (groupPos[i].c === 0) continue;
         let cx = groupPos[i].x / groupPos[i].c;
         let cy = groupPos[i].y / groupPos[i].c;
@@ -775,6 +951,7 @@ export function Brain({ open, onClose, onSound }: BrainProps) {
               info: draggedNode.info,
               colorHex: draggedNode.colorHex,
               colorRgb: draggedNode.colorRgb,
+              groupKey: GROUPS[draggedNode.groupId]?.key,
             });
           }
         }
@@ -825,7 +1002,8 @@ export function Brain({ open, onClose, onSound }: BrainProps) {
       window.removeEventListener("resize", handleResize);
       cancelAnimationFrame(rafId);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataSignature]);
 
   return (
     <motion.div
@@ -986,123 +1164,219 @@ export function Brain({ open, onClose, onSound }: BrainProps) {
           )}
         </div>
 
+        <button
+          onClick={() => setShowClearModal(true)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            width: "100%",
+            background: "rgba(239, 68, 68, 0.08)",
+            border: "1px solid rgba(239, 68, 68, 0.35)",
+            borderRadius: 10,
+            padding: "10px 14px",
+            color: "#f87171",
+            fontSize: 13,
+            fontFamily: "monospace",
+            letterSpacing: "0.5px",
+            cursor: "pointer",
+            transition: "all 0.2s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "rgba(239, 68, 68, 0.16)";
+            e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.6)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "rgba(239, 68, 68, 0.08)";
+            e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.35)";
+          }}
+        >
+          🗑 {t("brain.clearButton")}
+        </button>
+
+        {loading && (
+          <div style={{ color: "#a3a3a3", fontSize: 13, fontFamily: "monospace" }}>
+            {t("brain.loading")}
+          </div>
+        )}
+        {!loading && brainGroups.length === 0 && (
+          <div style={{ color: "#a3a3a3", fontSize: 13, fontFamily: "monospace" }}>
+            {t("brain.empty")}
+          </div>
+        )}
+
+        {/* Групи -> підгрупи -> нейрони. Кожна група має власний колір (як у Discord-ролях) —
+            journal=червоний, facts=фіолетовий, projects=синій, music=жовтий, people=зелений
+            (як і в People), memory=оранжевий (як і в Memory) — кольори задає бекенд. */}
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {[
-            { id: 0, title: t("brain.groupUsers"), rgb: "124, 58, 237" },
-            { id: 1, title: t("brain.groupMartin"), rgb: "6, 182, 212" },
-            { id: 2, title: t("brain.groupSystem"), rgb: "244, 63, 94" },
-          ].map((group) => (
-            <div key={group.id} style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
-              <div
-                onClick={() => {
-                  onSound?.("click-4");
-                  if (activeGroup === group.id) {
-                    setClosingGroup(group.id);
-                    setTimeout(() => {
-                      setActiveGroup(null);
-                      setClosingGroup(null);
-                    }, 300);
-                  } else {
-                    setActiveGroup(group.id);
-                  }
-                }}
-                style={{
-                  padding: "12px 14px",
-                  borderRadius: 8,
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                  fontSize: 14,
-                  color: activeGroup === group.id ? "#fff" : "#a3a3a3",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  border: "1px solid transparent",
-                  background: activeGroup === group.id ? "rgba(255, 255, 255, 0.1)" : "transparent",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = "#e5e5e5";
-                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
-                }}
-                onMouseLeave={(e) => {
-                  if (activeGroup !== group.id) {
-                    e.currentTarget.style.color = "#a3a3a3";
-                    e.currentTarget.style.background = "transparent";
-                  }
-                }}
-              >
+          {brainGroups.map((group) => {
+            const totalNeurons = group.subgroups.reduce((n, s) => n + s.neurons.length, 0);
+            const isGroupOpen =
+              activeGroup === group.key ||
+              searchExpanded.groups.has(group.key);
+            // i18n: перекладаємо назву групи через t('brain.group.KEY'),
+            // фалбек на значення з бекенда якщо ключ не знайдено.
+            const i18nKey = `brain.group.${group.key}`;
+            const translated = t(i18nKey);
+            const groupLabel = translated !== i18nKey ? translated : group.label;
+            return (
+              <div key={group.key} style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
                 <div
-                  style={{
-                    width: 12,
-                    height: 12,
-                    borderRadius: "50%",
-                    background: `rgb(${group.rgb})`,
-                    boxShadow: `0 0 8px rgb(${group.rgb})`,
-                    flexShrink: 0,
+                  onClick={() => {
+                    onSound?.("click-4");
+                    setActiveGroup(isGroupOpen ? null : group.key);
+                    setActiveSubgroup(null);
                   }}
-                />
-                {group.title}
-              </div>
-              {(activeGroup === group.id || closingGroup === group.id) && (
-                <div
                   style={{
-                    paddingLeft: 28,
+                    padding: "12px 14px",
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    fontSize: 14,
+                    color: isGroupOpen ? "#fff" : "#a3a3a3",
                     display: "flex",
-                    flexDirection: "column",
-                    gap: 4,
-                    marginTop: 6,
-                    marginBottom: 8,
-                    maxHeight: 280,
-                    overflowY: "auto",
-                    flexShrink: 0,
+                    alignItems: "center",
+                    gap: 10,
+                    border: "1px solid transparent",
+                    background: isGroupOpen ? "rgba(255, 255, 255, 0.1)" : "transparent",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = "#e5e5e5";
+                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isGroupOpen) {
+                      e.currentTarget.style.color = "#a3a3a3";
+                      e.currentTarget.style.background = "transparent";
+                    }
                   }}
                 >
-                  {(groupNeurons[group.id] || [])
-                    .filter((neuron) =>
-                      searchQuery.trim()
-                        ? neuron.title.toLowerCase().includes(searchQuery.trim().toLowerCase())
-                        : true,
-                    )
-                    .map((neuron) => (
-                    <div
-                      key={neuron.id}
-                      onClick={() => {
-                        onSound?.("click-6-mode");
-                        openNodeModal(neuron);
-                      }}
-                      onMouseEnter={(e) => {
-                        onSound?.("click-5-clowse");
-                        e.currentTarget.style.color = "#e5e5e5";
-                        e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
-                        e.currentTarget.style.borderRadius = "6px";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.color = "#a3a3a3";
-                        e.currentTarget.style.background = "transparent";
-                        e.currentTarget.style.borderRadius = "0";
-                      }}
-                      style={{
-                        padding: "10px 12px",
-                        fontSize: 13,
-                        color: "#a3a3a3",
-                        cursor: "pointer",
-                        transition: "background 0.2s, color 0.2s",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontFamily: "monospace",
-                        borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
-                        flexShrink: 0,
-                        minHeight: 34,
-                        boxSizing: "border-box",
-                      }}
-                    >
-                      {neuron.title}
-                    </div>
-                  ))}
+                  <div
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: "50%",
+                      background: `rgb(${group.color})`,
+                      boxShadow: `0 0 8px rgb(${group.color})`,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span style={{ flex: 1 }}>{groupLabel}</span>
+                  <span style={{ fontSize: 11, opacity: 0.5 }}>{totalNeurons}</span>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {isGroupOpen && (
+                  <div
+                    style={{
+                      paddingLeft: 20,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 2,
+                      marginTop: 6,
+                      marginBottom: 8,
+                    }}
+                  >
+                    {group.subgroups.map((sub) => {
+                      const subKey = `${group.key}:${sub.key}`;
+                      const isSubOpen =
+                        activeSubgroup === subKey ||
+                        searchExpanded.subs.has(subKey);
+                      const filteredNeurons = sub.neurons.filter((n) =>
+                        searchQuery.trim()
+                          ? n.title.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+                            n.info.toLowerCase().includes(searchQuery.trim().toLowerCase())
+                          : true,
+                      );
+                      return (
+                        <div key={sub.key}>
+                          <div
+                            onClick={() => {
+                              onSound?.("click-4");
+                              setActiveSubgroup(isSubOpen ? null : subKey);
+                            }}
+                            style={{
+                              padding: "8px 10px",
+                              fontSize: 13,
+                              color: isSubOpen ? "#e5e5e5" : "#8a8a8a",
+                              cursor: "pointer",
+                              borderRadius: 6,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              fontFamily: "monospace",
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                          >
+                            <span>▸ {sub.label}</span>
+                            <span style={{ fontSize: 10, opacity: 0.5 }}>{sub.neurons.length}</span>
+                          </div>
+
+                          {isSubOpen && (
+                            <div
+                              style={{
+                                paddingLeft: 16,
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 4,
+                                marginTop: 2,
+                                marginBottom: 6,
+                                maxHeight: 240,
+                                overflowY: "auto",
+                              }}
+                            >
+                              {filteredNeurons.map((neuron, idx) => (
+                                <div
+                                  key={idx}
+                                  onClick={() => {
+                                    onSound?.("click-6-mode");
+                                    openNodeModal({
+                                      title: neuron.title,
+                                      info: neuron.info,
+                                      colorHex: rgbToHex(group.color),
+                                      colorRgb: group.color,
+                                      groupKey: group.key,
+                                    });
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    onSound?.("click-5-clowse");
+                                    e.currentTarget.style.color = "#e5e5e5";
+                                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
+                                    e.currentTarget.style.borderRadius = "6px";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.color = "#a3a3a3";
+                                    e.currentTarget.style.background = "transparent";
+                                    e.currentTarget.style.borderRadius = "0";
+                                  }}
+                                  style={{
+                                    padding: "8px 10px",
+                                    fontSize: 12,
+                                    color: "#a3a3a3",
+                                    cursor: "pointer",
+                                    transition: "background 0.2s, color 0.2s",
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    fontFamily: "monospace",
+                                    borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {neuron.title}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </aside>
 
@@ -1113,7 +1387,7 @@ export function Brain({ open, onClose, onSound }: BrainProps) {
           flex: 1,
         }}
       />
-      
+
       <div
         style={{
           position: "absolute",
@@ -1206,9 +1480,9 @@ export function Brain({ open, onClose, onSound }: BrainProps) {
                 position: "relative",
               }}
             >
-              <GlassDock 
-                borderRadius={16} 
-                disableEdge={true} 
+              <GlassDock
+                borderRadius={16}
+                disableEdge={true}
                 overlayStyle={{
                   background: `
                     linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 35%),
@@ -1216,7 +1490,7 @@ export function Brain({ open, onClose, onSound }: BrainProps) {
                   `,
                   boxShadow: `inset 0 1px 1px rgba(255,255,255,0.25), inset 0 10px 30px rgba(${modalNode.colorRgb}, 0.05), 0 0 30px rgba(${modalNode.colorRgb}, 0.15)`
                 }}
-                style={{ position: "absolute", inset: 0, zIndex: 0 }} 
+                style={{ position: "absolute", inset: 0, zIndex: 0 }}
               />
               <div style={{ position: "relative", zIndex: 2 }}>
                 <button
@@ -1273,6 +1547,329 @@ export function Brain({ open, onClose, onSound }: BrainProps) {
                 >
                   {typedBody}
                 </div>
+
+                {modalNode.groupKey === "facts" && modalNode.factKey && modalNode.factUserId && (
+                  <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+                    {factDone === "saved" && (
+                      <div style={{ fontFamily: "monospace", fontSize: 13, color: "#4ade80", textAlign: "center", padding: "6px 0" }}>
+                        {t("brain.factSaved")}
+                      </div>
+                    )}
+                    {factDone === "deleted" && (
+                      <div style={{ fontFamily: "monospace", fontSize: 13, color: "#4ade80", textAlign: "center", padding: "6px 0" }}>
+                        {t("brain.factDeleted")}
+                      </div>
+                    )}
+
+                    {!factDone && factEditing && (
+                      <>
+                        <input
+                          type="text"
+                          value={factEditValue}
+                          onChange={(e) => setFactEditValue(e.target.value)}
+                          placeholder={t("brain.newValuePlaceholder")}
+                          disabled={factSubmitting}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && factEditValue.trim() && !factSubmitting) handleSaveFactEdit();
+                          }}
+                          style={{
+                            background: "rgba(38, 38, 38, 0.6)",
+                            border: "1px solid #333",
+                            borderRadius: 10,
+                            padding: "10px 12px",
+                            width: "100%",
+                            color: "#e5e5e5",
+                            fontSize: 13,
+                            outline: "none",
+                            marginBottom: 10,
+                            fontFamily: "monospace",
+                            boxSizing: "border-box",
+                          }}
+                          autoFocus
+                        />
+                        {factError && (
+                          <div style={{ color: "#f87171", fontSize: 12, fontFamily: "monospace", marginBottom: 10 }}>
+                            {factError}
+                          </div>
+                        )}
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button
+                            onClick={() => { setFactEditing(false); setFactError(""); }}
+                            disabled={factSubmitting}
+                            style={{
+                              flex: 1, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)",
+                              borderRadius: 10, padding: "9px 12px", color: "#e5e5e5", fontSize: 12,
+                              fontFamily: "monospace", cursor: factSubmitting ? "default" : "pointer",
+                              opacity: factSubmitting ? 0.5 : 1,
+                            }}
+                          >
+                            {t("common.cancel")}
+                          </button>
+                          <button
+                            onClick={handleSaveFactEdit}
+                            disabled={factSubmitting || !factEditValue.trim()}
+                            style={{
+                              flex: 1, background: "rgba(34,197,94,0.18)", border: "1px solid rgba(34,197,94,0.5)",
+                              borderRadius: 10, padding: "9px 12px", color: "#4ade80", fontSize: 12,
+                              fontFamily: "monospace", cursor: factSubmitting || !factEditValue.trim() ? "default" : "pointer",
+                              opacity: factSubmitting || !factEditValue.trim() ? 0.5 : 1,
+                            }}
+                          >
+                            {t("common.save")}
+                          </button>
+                        </div>
+                      </>
+                    )}
+
+                    {!factDone && !factEditing && factConfirmDelete && (
+                      <>
+                        <div style={{ fontFamily: "monospace", fontSize: 12, color: "#a3a3a3", marginBottom: 10 }}>
+                          {t("brain.deleteFactConfirm")}
+                        </div>
+                        {factError && (
+                          <div style={{ color: "#f87171", fontSize: 12, fontFamily: "monospace", marginBottom: 10 }}>
+                            {factError}
+                          </div>
+                        )}
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button
+                            onClick={() => { setFactConfirmDelete(false); setFactError(""); }}
+                            disabled={factSubmitting}
+                            style={{
+                              flex: 1, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)",
+                              borderRadius: 10, padding: "9px 12px", color: "#e5e5e5", fontSize: 12,
+                              fontFamily: "monospace", cursor: factSubmitting ? "default" : "pointer",
+                              opacity: factSubmitting ? 0.5 : 1,
+                            }}
+                          >
+                            {t("common.cancel")}
+                          </button>
+                          <button
+                            onClick={handleDeleteFact}
+                            disabled={factSubmitting}
+                            style={{
+                              flex: 1, background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.5)",
+                              borderRadius: 10, padding: "9px 12px", color: "#f87171", fontSize: 12,
+                              fontFamily: "monospace", cursor: factSubmitting ? "default" : "pointer",
+                              opacity: factSubmitting ? 0.5 : 1,
+                            }}
+                          >
+                            {t("common.delete")}
+                          </button>
+                        </div>
+                      </>
+                    )}
+
+                    {!factDone && !factEditing && !factConfirmDelete && (
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={() => { setFactEditValue(""); setFactEditing(true); }}
+                          style={{
+                            flex: 1, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)",
+                            borderRadius: 10, padding: "9px 12px", color: "#e5e5e5", fontSize: 12,
+                            fontFamily: "monospace", cursor: "pointer",
+                          }}
+                        >
+                          {t("brain.editValue")}
+                        </button>
+                        <button
+                          onClick={() => setFactConfirmDelete(true)}
+                          style={{
+                            flex: 1, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.4)",
+                            borderRadius: 10, padding: "9px 12px", color: "#f87171", fontSize: 12,
+                            fontFamily: "monospace", cursor: "pointer",
+                          }}
+                        >
+                          {t("common.delete")}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showClearModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => !clearSubmitting && closeClearModal()}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0, 0, 0, 0.6)",
+              backdropFilter: "blur(8px)",
+              zIndex: 600,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              paddingLeft: 500,
+            }}
+          >
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              initial={{ scale: 0.95, y: 10, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 10, opacity: 0 }}
+              transition={{ duration: 0.35, ease: [0.175, 0.885, 0.32, 1.275] }}
+              style={{
+                padding: 36,
+                width: 400,
+                position: "relative",
+              }}
+            >
+              <GlassDock
+                borderRadius={16}
+                disableEdge={true}
+                overlayStyle={{
+                  background: `
+                    linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 35%),
+                    radial-gradient(ellipse at 50% -20%, rgba(239, 68, 68, 0.2) 0%, transparent 60%)
+                  `,
+                  boxShadow: `inset 0 1px 1px rgba(255,255,255,0.25), inset 0 10px 30px rgba(239, 68, 68, 0.05), 0 0 30px rgba(239, 68, 68, 0.15)`
+                }}
+                style={{ position: "absolute", inset: 0, zIndex: 0 }}
+              />
+              <div style={{ position: "relative", zIndex: 2 }}>
+                {!clearSubmitting && (
+                  <button
+                    onClick={closeClearModal}
+                    style={{
+                      position: "absolute",
+                      top: -20,
+                      right: -16,
+                      background: "none",
+                      border: "none",
+                      color: "rgba(163,163,163,0.8)",
+                      fontSize: 26,
+                      cursor: "pointer",
+                      lineHeight: 1,
+                      transition: "color 0.2s",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(163,163,163,0.8)")}
+                  >
+                    ×
+                  </button>
+                )}
+                <div
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 600,
+                    color: "#f87171",
+                    textShadow: "0 0 12px rgba(239, 68, 68, 0.6)",
+                    marginBottom: 12,
+                    fontFamily: "monospace",
+                  }}
+                >
+                  {t("brain.clearButton")}
+                </div>
+                <div
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: 13,
+                    color: "#a3a3a3",
+                    lineHeight: 1.6,
+                    marginBottom: 20,
+                  }}
+                >
+                  {t("brain.clearWarning")}
+                </div>
+                {clearDone ? (
+                  <div
+                    style={{
+                      fontFamily: "monospace",
+                      fontSize: 14,
+                      color: "#4ade80",
+                      textAlign: "center",
+                      padding: "8px 0",
+                    }}
+                  >
+                    {t("brain.clearSuccess")}
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      type="password"
+                      value={clearPassword}
+                      onChange={(e) => setClearPassword(e.target.value)}
+                      placeholder={t("persona.adminPassword")}
+                      disabled={clearSubmitting}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && clearPassword && !clearSubmitting) handleClearBrain();
+                      }}
+                      style={{
+                        background: "rgba(38, 38, 38, 0.6)",
+                        border: "1px solid #333",
+                        borderRadius: 10,
+                        padding: "12px 14px",
+                        width: "100%",
+                        color: "#e5e5e5",
+                        fontSize: 14,
+                        outline: "none",
+                        marginBottom: 12,
+                        fontFamily: "Arial, sans-serif",
+                        boxSizing: "border-box",
+                      }}
+                      autoFocus
+                    />
+                    {clearError && (
+                      <div
+                        style={{
+                          color: "#f87171",
+                          fontSize: 12,
+                          fontFamily: "monospace",
+                          marginBottom: 12,
+                        }}
+                      >
+                        {clearError}
+                      </div>
+                    )}
+                    <div style={{ display: "flex", gap: 10 }}>
+                      <button
+                        onClick={closeClearModal}
+                        disabled={clearSubmitting}
+                        style={{
+                          flex: 1,
+                          background: "rgba(255, 255, 255, 0.08)",
+                          border: "1px solid rgba(255, 255, 255, 0.2)",
+                          borderRadius: 10,
+                          padding: "10px 14px",
+                          color: "#e5e5e5",
+                          fontSize: 13,
+                          fontFamily: "monospace",
+                          cursor: clearSubmitting ? "default" : "pointer",
+                          opacity: clearSubmitting ? 0.5 : 1,
+                        }}
+                      >
+                        {t("common.cancel")}
+                      </button>
+                      <button
+                        onClick={handleClearBrain}
+                        disabled={clearSubmitting || !clearPassword}
+                        style={{
+                          flex: 1,
+                          background: "rgba(239, 68, 68, 0.18)",
+                          border: "1px solid rgba(239, 68, 68, 0.5)",
+                          borderRadius: 10,
+                          padding: "10px 14px",
+                          color: "#f87171",
+                          fontSize: 13,
+                          fontFamily: "monospace",
+                          cursor: clearSubmitting || !clearPassword ? "default" : "pointer",
+                          opacity: clearSubmitting || !clearPassword ? 0.5 : 1,
+                        }}
+                      >
+                        {clearSubmitting ? t("brain.clearing") : t("brain.clearButton")}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </motion.div>
           </motion.div>

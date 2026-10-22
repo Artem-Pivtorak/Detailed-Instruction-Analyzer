@@ -86,6 +86,8 @@ function PluginDropdown({
   selected,
   onSelect,
   fullWidth = false,
+  flashText = null,
+  flashColor,
 }: {
   plugin: PluginConfig;
   onSound: (t: string) => void;
@@ -93,6 +95,11 @@ function PluginDropdown({
   selected: string;
   onSelect: (opt: string) => void;
   fullWidth?: boolean;
+  // Локалізований статус останньої зміни САМЕ цього двигуна/моделі (не один спільний рядок для
+  // всієї панелі) - текст вже перекладений викликаючим компонентом через t(...) (див.
+  // SidePanel нижче) - цей компонент нічого не знає про i18n напряму.
+  flashText?: string | null;
+  flashColor?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -203,6 +210,25 @@ function PluginDropdown({
           ▾
         </span>
       </button>
+
+      {/* Статус останньої зміни САМЕ цього двигуна - всередині того ж фрейму/блока, а не один спільний рядок
+          на всю панель внизу - користувач одразу бачить, до якого саме двигуна відноситься результат. */}
+      {flashText && (
+        <div
+          style={{
+            fontSize: 9,
+            marginTop: 4,
+            padding: "0 2px",
+            textAlign: "center",
+            color: flashColor || "rgba(255,255,255,0.5)",
+            fontFamily: "'RexBold', sans-serif",
+            letterSpacing: "0.02em",
+            lineHeight: 1.3,
+          }}
+        >
+          {flashText}
+        </div>
+      )}
 
       <AnimatePresence>
         {open && (
@@ -332,6 +358,25 @@ export function SidePanel({
   // озвучує наступну репліку асистента.
   const [engineConfig, setEngineConfig] = useState<Record<string, { current: string; options: string[] }> | null>(null);
   const [engineFlash, setEngineFlash] = useState<{ category: string; ok: boolean; live: boolean } | null>(null);
+  // ФІКС (статичні списки моделей без можливості оновити): те саме джерело правди, що й у
+  // SettingsSection - engineConfig.models_update_available вказує на свіжі/інші безкоштовні
+  // моделі, знайдені тихою перевіркою при старті (llm_models_registry.check_updates_async в test.py).
+  const [modelsRefreshing, setModelsRefreshing] = useState(false);
+
+  function refreshModels() {
+    const api = (window as any).pywebview?.api;
+    if (!api?.refresh_models || modelsRefreshing) return;
+    setModelsRefreshing(true);
+    api
+      .refresh_models()
+      .then((res: { ok: boolean; engine_config?: any }) => {
+        if (res?.ok) {
+          onSound("click-4");
+          if (res.engine_config) setEngineConfig(res.engine_config);
+        }
+      })
+      .finally(() => setModelsRefreshing(false));
+  }
 
   const fetchEngineConfig = () => {
     const api = (window as any).pywebview?.api;
@@ -376,6 +421,17 @@ export function SidePanel({
   const currentLlmEngine = engineConfig?.llm_engine?.current;
   const activeModelKey = currentLlmEngine ? llmModelKeyFor[currentLlmEngine] : null;
 
+  // Локалізований текст/колір для engineFlash конкретної категорії - показується
+  // всередині того ж дропдауна, де був зроблений вибір (див. flashText/flashColor в
+  // pluginsConfig нижче), а НЕ один спільний рядок внизу всієї панелі. Мова береться з
+  // t(...) — автоматично підлаштовується під поточну мову інтерфейсу (uk/ru/en).
+  function flashFor(category: string): { text: string | null; color?: string } {
+    if (!engineFlash || engineFlash.category !== category) return { text: null };
+    if (!engineFlash.ok) return { text: `\u2715 ${t("settings.saveError")}`, color: "#f87171" };
+    if (engineFlash.live) return { text: `\u2713 ${t("settings.appliedLive")}`, color: "#4ade80" };
+    return { text: `\u2713 ${t("settings.restartRequired")}`, color: "rgba(192,132,252,0.75)" };
+  }
+
   useEffect(() => {
     if (!open) return;
     function handle(e: KeyboardEvent) {
@@ -403,6 +459,8 @@ export function SidePanel({
   const pluginsConfig: (PluginConfig & {
     selected: string;
     onSelect: (v: string) => void;
+    flashText?: string | null;
+    flashColor?: string;
   })[] = engineConfig
     ? [
         {
@@ -412,6 +470,7 @@ export function SidePanel({
           options: engineConfig.tts_engine.options,
           selected: engineConfig.tts_engine.current,
           onSelect: (v: string) => applyEngineChoice("tts_engine", v),
+          ...flashFor("tts_engine"),
         },
         {
           id: "stt_engine",
@@ -420,6 +479,7 @@ export function SidePanel({
           options: engineConfig.stt_engine.options,
           selected: engineConfig.stt_engine.current,
           onSelect: (v: string) => applyEngineChoice("stt_engine", v),
+          ...flashFor("stt_engine"),
         },
         {
           id: "wake_backend",
@@ -428,6 +488,7 @@ export function SidePanel({
           options: engineConfig.wake_backend.options,
           selected: engineConfig.wake_backend.current,
           onSelect: (v: string) => applyEngineChoice("wake_backend", v),
+          ...flashFor("wake_backend"),
         },
         {
           id: "llm_engine",
@@ -436,6 +497,7 @@ export function SidePanel({
           options: engineConfig.llm_engine.options,
           selected: engineConfig.llm_engine.current,
           onSelect: (v: string) => applyEngineChoice("llm_engine", v),
+          ...flashFor("llm_engine"),
         },
       ]
     : [];
@@ -618,6 +680,8 @@ export function SidePanel({
                           selected={p.selected}
                           onSelect={p.onSelect}
                           alignRight={idx % 2 === 1}
+                          flashText={p.flashText}
+                          flashColor={p.flashColor}
                         />
                       ))}
                     </div>
@@ -636,32 +700,39 @@ export function SidePanel({
                         selected={engineConfig[activeModelKey].current}
                         onSelect={(v) => applyEngineChoice(activeModelKey, v)}
                         fullWidth
+                        flashText={flashFor(activeModelKey).text}
+                        flashColor={flashFor(activeModelKey).color}
                       />
+                    )}
+
+                    {/* ФІКС (статичні списки моделей без можливості оновити): компактна кнопка відразу
+                        під всіма двигунами/моделлю - з'являється, коли тиха перевірка при старті
+                        (llm_models_registry.check_updates_async в test.py) знайшла свіжі/інші безкоштовні
+                        моделі. Реальне оновлення (з пінгом g4f-моделей) - лише по натисканню кнопки. */}
+                    {engineConfig.models_update_available && (
+                      <div
+                        onClick={refreshModels}
+                        style={{
+                          textAlign: "center",
+                          padding: "8px 10px",
+                          borderRadius: 8,
+                          border: "1px solid rgba(74, 222, 128, 0.5)",
+                          background: "rgba(74, 222, 128, 0.08)",
+                          color: "#86efac",
+                          fontFamily: "'RexBold', sans-serif",
+                          fontSize: 11,
+                          letterSpacing: "0.03em",
+                          cursor: modelsRefreshing ? "default" : "pointer",
+                          opacity: modelsRefreshing ? 0.6 : 1,
+                          userSelect: "none",
+                        }}
+                      >
+                        {modelsRefreshing ? t("settings.modelsRefreshing") : t("settings.modelsUpdateAvailable")}
+                      </div>
                     )}
 
                     {/* Живий статус останньої зміни рушія — "Застосовано живо" для TTS (не потрібує
                         перезапуску), інакше — чесно попереджає про потребу в перезапуску (STT/ACT/LLM). */}
-                    {engineFlash && (
-                      <p
-                        style={{
-                          fontSize: 10,
-                          margin: 0,
-                          fontFamily: "'RexBold', sans-serif",
-                          letterSpacing: "0.04em",
-                          color: !engineFlash.ok
-                            ? "#f87171"
-                            : engineFlash.live
-                              ? "#4ade80"
-                              : "rgba(192,132,252,0.7)",
-                        }}
-                      >
-                        {!engineFlash.ok
-                          ? "\u2715 Не вдалося зберегти (бекенд ще не готовий)"
-                          : engineFlash.live
-                            ? "\u2713 Застосовано живо — без перезапуску"
-                          : "\u2713 Збережено — набуде чинності після перезапуску"}
-                      </p>
-                    )}
                   </>
                 )}
               </div>

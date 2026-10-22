@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>M.A.R.T.I.N. — розкладка</title>
+<style>
+  @font-face {
+    font-family: "RexBold";
+    src: url("fonts/Rex_Bold.otf") format("opentype");
+    font-weight: 400;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: "pdark";
+    src: url("fonts/pdark.ttf") format("truetype");
+    font-weight: 400;
+    font-style: normal;
+  }
+
+  :root {
+    --foreground: 210 40% 95%;
+    --muted-foreground: 210 30% 60%;
+  }
+
+  * { box-sizing: border-box; }
+
+  /* ── МАГІЧНИЙ колір прозорості (colorkey) ─────────────────────────────
+     На Windows 11 справжня alpha-прозорість WebView2 (transparent=True в
+     pywebview) не працює коректно — відомий, задокументований баг
+     (github.com/r0x0r/pywebview issue #1611): фон показує колір теми
+     Windows замість реального вмісту позаду вікна.
+
+     Обхід: замість (зламаної) alpha-прозорості використовуємо старий
+     перевірений Win32-механізм SetLayeredWindowAttributes(..., LWA_COLORKEY)
+     — translate_popup.py "виколює" рівно цей колір (#FF00FF) як прозору
+     "дірку" на рівні вікна ОС. ВАЖЛИВО: ця прозорість БІНАРНА (піксель або
+     точно цього кольору = дірка, або будь-який інший = повністю
+     непрозорий) — тому цей колір НЕ можна змішувати з напівпрозорими
+     елементами (вони "зіпсують" точний відтінок і залишаться непрозорими).
+     Сама "скляна панель" (розмиття, деформація, тонування, заокруглені
+     кути) тепер повністю малюється нативним glass_overlay.exe позаду —
+     тут лишаються тільки кнопки/текст, що floaт-ять поверх неї. */
+  html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: #FF00FF;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+    font-family: "pdark", "Segoe UI", Arial, sans-serif;
+  }
+
+  .content {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding: 14px 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .title {
+    text-align: center;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+    font-family: "RexBold", "Segoe UI", Arial, sans-serif;
+    text-shadow: 0 1px 3px #000a;
+  }
+
+  .grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 10px;
+  }
+
+  /* Кнопки — НАВМИСНО суцільні (без альфи у фоні): справжня alpha-
+     прозорість крізь межу вікна тут недоступна (colorkey — бінарний), тому
+     "скляність" самих кнопок не показуємо — лише їхню акуратну неонову
+     стилістику. Живе скло видно в проміжках між кнопками й довкола них. */
+  .btn {
+    cursor: pointer;
+    outline: none;
+    position: relative;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    font-family: "RexBold", "Segoe UI", Arial, sans-serif;
+    transition: transform 0.12s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  }
+  .btn:active { transform: scale(0.95); }
+  .btn .dir  { font-size: 13px; font-weight: 700; letter-spacing: 0.03em; }
+  .btn .arr  { font-size: 11px; opacity: 0.8; }
+
+  .btn::after {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: inherit;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .btn:hover::after { opacity: 1; }
+  .btn:hover { filter: brightness(1.15); }
+
+  .neon-cyan {
+    color: #baf6ff; background: #0b2830; border: 1px solid #00dcff8c;
+    box-shadow: 0 2px 6px #000a, 0 0 8px #00dcff40, inset 0 0 8px #00dcff26;
+  }
+  .neon-cyan::after { box-shadow: 0 0 18px 4px #00dcff73, 0 0 40px 8px #00dcff33; }
+
+  .neon-green {
+    color: #c6ffe4; background: #0b2a1e; border: 1px solid #00ff7880;
+    box-shadow: 0 2px 6px #000a, 0 0 8px #00ff7838, inset 0 0 8px #00ff7826;
+  }
+  .neon-green::after { box-shadow: 0 0 18px 4px #00ff7873, 0 0 40px 8px #00ff7833; }
+
+  .neon-orange {
+    color: #ffe0c2; background: #2a1a0b; border: 1px solid #ff640080;
+    box-shadow: 0 2px 6px #000a, 0 0 8px #ff640038, inset 0 0 8px #ff640026;
+  }
+  .neon-orange::after { box-shadow: 0 0 18px 4px #ff640073, 0 0 40px 8px #ff640033; }
+
+  .neon-pink {
+    color: #ffd6f2; background: #2a0b22; border: 1px solid #ff28b480;
+    box-shadow: 0 2px 6px #000a, 0 0 8px #ff28b438, inset 0 0 8px #ff28b426;
+  }
+  .neon-pink::after { box-shadow: 0 0 18px 4px #ff28b473, 0 0 40px 8px #ff28b433; }
+
+  .hint {
+    text-align: center;
+    font-size: 9px;
+    opacity: 0.7;
+    color: hsl(var(--foreground));
+    text-shadow: 0 1px 3px #000a;
+  }
+</style>
+</head>
+<body>
+
+<div class="content">
+  <div class="title">Виправити розкладку</div>
+  <div class="grid">
+    <button class="btn neon-cyan"   data-dir="en_ua"><span class="dir">EN</span><span class="arr">→ UA</span></button>
+    <button class="btn neon-green"  data-dir="ua_en"><span class="dir">UA</span><span class="arr">→ EN</span></button>
+    <button class="btn neon-orange" data-dir="en_ru"><span class="dir">EN</span><span class="arr">→ RU</span></button>
+    <button class="btn neon-pink"   data-dir="ru_en"><span class="dir">RU</span><span class="arr">→ EN</span></button>
+  </div>
+  <div class="hint">Esc — скасувати</div>
+</div>
+
+<script>
+  let pending = null;
+
+  function apiCall(fn) {
+    if (window.pywebview && window.pywebview.api) {
+      fn(window.pywebview.api);
+    } else {
+      pending = fn;
+    }
+  }
+
+  function doFix(direction) {
+    apiCall(api => api.fix(direction));
+  }
+
+  function doCancel() {
+    apiCall(api => api.cancel());
+  }
+
+  window.addEventListener("pywebviewready", () => {
+    if (pending) {
+      const fn = pending;
+      pending = null;
+      fn(window.pywebview.api);
+    }
+  });
+
+  document.querySelectorAll(".btn").forEach(btn => {
+    btn.addEventListener("click", () => doFix(btn.dataset.dir));
+  });
+
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      doCancel();
+    }
+  });
+</script>
+
+</body>
+</html>
